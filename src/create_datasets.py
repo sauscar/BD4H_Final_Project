@@ -29,20 +29,23 @@ def import_tables(inp_folder):
     print('FILTERED RECORDS in ', df_MICROBIOLOGY.shape)
 
     ### LABEVENTS
-    df_labevents = read_table(inp_folder,filename = 'LABEVENTS.csv')
+    '''df_labevents = read_table(inp_folder,filename = 'LABEVENTS.csv')
     df_labevents = df_labevents[df_labevents['SUBJECT_ID'].isin(unq_ICU_patients)]
     df_labevents = df_labevents[df_labevents['FLAG']=='abnormal']
     df_labevents = df_labevents[['SUBJECT_ID','HADM_ID','ITEMID','CHARTTIME']]
-    print('FILTERED RECORDS in ', df_labevents.shape)
+    print('FILTERED RECORDS in ', df_labevents.shape)'''
 
     ### DIAGNOSIS
-    #TODO: read diagnosis data
-    df_diagnosis = df_labevents#read_table(inp_folder,filename = 'DIAGNOSIS_ICD.csv')
+    #TODO: read diagnosis data OSCAR
+    df_diagnosis = read_table(inp_folder,filename = 'DIAGNOSES_ICD.csv')
+    df_diagnosis = df_diagnosis[['SUBJECT_ID','HADM_ID','SEQ_NUM','ICD9_CODE']]
 
+    
     ### PROCEDURE
-    df_procedures = df_labevents#read_table(inp_folder,filename = 'DIAGNOSIS_ICD.csv')
+    df_procedures = read_table(inp_folder,filename = 'PROCEDURES_ICD.csv')
+    df_procedures = df_procedures[['SUBJECT_ID','HADM_ID','SEQ_NUM','ICD9_CODE']]
 
-    return df_icustays, df_patients, df_MICROBIOLOGY, df_labevents, df_diagnosis, df_procedures
+    return df_icustays, df_patients, df_MICROBIOLOGY, df_diagnosis, df_procedures#, df_labevents
 
 
 

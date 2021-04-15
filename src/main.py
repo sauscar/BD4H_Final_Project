@@ -11,6 +11,7 @@ inp_folder = '../data'
 
 df_icustays, df_patients, df_MICROBIOLOGY, df_diagnosis, df_procedures = import_tables(inp_folder)
 
+### ERIMA REMOVE BLANK HADM_IDs
 
 
 ### TODO convert_icd9 on diagnosis and procedures table
@@ -35,6 +36,8 @@ df_diagnosis = df_diagnosis[~(filter_condition1|filter_condition2)]
 df_diagnosis = df_diagnosis[['SUBJECT_ID', 'HADM_ID','FEATURE_ID']]
 print("DIAGNOSIS TABLE:",df_diagnosis.count())
 
+
+### COUBLE CHECK SEPSIS IS NOT IN DIAGNOSIS TABLE
 
 
 ### TODO Append all tables df_MICROBIOLOGY, df_labevents, df_diagnosis, df_procedures

@@ -9,3 +9,5 @@ def logreg(X,y):
     logistic_regression.fit(X_train,y_train)
     y_pred=logistic_regression.predict(X_test)
 
+    print(metrics.roc_auc_score(y_test, y_pred))
+

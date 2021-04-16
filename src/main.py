@@ -4,6 +4,8 @@ from create_datasets import import_tables
 import pandas as pd
 from utils import build_codemap
 from utils import convert_icd9
+from models import logreg
+from model_prep import prepare
 
 inp_folder = '/Users/oscar/Documents/GeorgiaTech/BigDataForHealth/BD4H_PROJECT/BD4H_Final_Project'
 
@@ -29,11 +31,11 @@ filter_condition2 = df_diagnosis['ICD9_CODE'] == '99591'
 # print("ORIGINAL DIAGNOSIS TABLE:",df_diagnosis.count())
 
 df_sepsis = df_diagnosis[filter_condition1|filter_condition2]
-print("SEPSIS TABLE:",df_sepsis.count())
+# print("SEPSIS TABLE:",df_sepsis.count())
 
 df_diagnosis = df_diagnosis[~(filter_condition1|filter_condition2)]
 df_diagnosis = df_diagnosis[['SUBJECT_ID', 'HADM_ID','FEATURE_ID']]
-print("DIAGNOSIS TABLE:",df_diagnosis.count())
+# print("DIAGNOSIS TABLE:",df_diagnosis.count())
 
 
 
@@ -44,10 +46,10 @@ df_MICROBIOLOGY = df_MICROBIOLOGY.rename(columns = {'SPEC_ITEMID': 'FEATURE_ID'}
 list_of_dfs = [df_diagnosis, df_procedures,df_MICROBIOLOGY]
 
 df_all_events = pd.concat(list_of_dfs)
-print("df_MICROBIOLOGY TABLE:",df_MICROBIOLOGY.count())
-print("df_procedures TABLE:",df_procedures.count())
-print("DIAGNOSIS TABLE:",df_diagnosis.count())
-print("all TABLE:",df_all_events.count())
+# print("df_MICROBIOLOGY TABLE:",df_MICROBIOLOGY.count())
+# print("df_procedures TABLE:",df_procedures.count())
+# print("DIAGNOSIS TABLE:",df_diagnosis.count())
+# print("all TABLE:",df_all_events.count())
 
 
 ### ERIMA TODO ::: ADD LABEVENTS
@@ -55,30 +57,46 @@ print("all TABLE:",df_all_events.count())
 
 ### TODO build codemap for all ITEMID + features
 codemap = build_codemap(df_all_events['FEATURE_ID'])
-#print(codemap)
+
+del codemap['nan']
+
+df_all_events = df_all_events[~(df_all_events['FEATURE_ID']=='nan')]
+
 df_all_events['FEATURE_ID2'] = df_all_events['FEATURE_ID'].map(codemap)
+
+df_all_events['FEATURE_ID2'] = df_all_events['FEATURE_ID2'].astype('Int64')
 
 # TODO: 4. Group the visits for the same patient and admission
 #df_all_events = df_all_events.sort_values(by=['SUBJECT_ID', 'ADMITTIME']) ## LATER SEQUENCE IF WE FIND A WAY
 
 df_all_events2 = df_all_events.groupby(['SUBJECT_ID', 'HADM_ID'])["FEATURE_ID2"].apply(list).reset_index()
-df_all_events2 = df_all_events2.groupby(['SUBJECT_ID'])["FEATURE_ID2"].apply(list).reset_index()              ### GROUP ON PATIENTS to get LIST of LISTS
+# df_all_events2 = df_all_events2.groupby(['SUBJECT_ID'])["FEATURE_ID2"].apply(list).reset_index()              ### GROUP ON PATIENTS to get LIST of LISTS
 print(df_all_events2.head())
 
 ### TODO MERGE sepsis at hadmid
 df_sepsis['SEPSIS'] = 1
-print(df_sepsis.head())
+# print(df_sepsis.head())
 
 df_all_events2 = df_all_events2.merge(df_sepsis[['SUBJECT_ID','HADM_ID','SEPSIS']],
 					how='left',
-					# left_on = ['SUBJECT_ID','HADM_ID'],
-					left_on = ['SUBJECT_ID'],
-					# right_on = ['SUBJECT_ID','HADM_ID'])
-					right_on = ['SUBJECT_ID'])
+					left_on = ['SUBJECT_ID','HADM_ID'],
+					# left_on = ['SUBJECT_ID'],
+					right_on = ['SUBJECT_ID','HADM_ID'])
+					# right_on = ['SUBJECT_ID'])
+
 
 df_all_events2['SEPSIS'] = df_all_events2['SEPSIS'].fillna(0)
-patient124 = df_all_events2[df_all_events2['SUBJECT_ID']==124]
-print(list(patient124['FEATURE_ID2']))
+print(df_all_events2.head())
+X = list(df_all_events2['FEATURE_ID2'])
+y = list(df_all_events2['SEPSIS'].astype('Int64'))
+
+length_features = len(codemap)
+
+prepare(X,y,length_features)
+logreg(X,y)
+
+# patient124 = df_all_events2[df_all_events2['SUBJECT_ID']==124]
+# print(list(patient124['FEATURE_ID2']))
 # print(df_all_events2.head())
 # sepsis_df_after = df_all_events2[df_all_events2['SEPSIS']==1]
 # featureID2_sepsis_list = list(sepsis_df_after['FEATURE_ID2'])

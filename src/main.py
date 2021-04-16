@@ -9,6 +9,10 @@ from model_prep import prepare
 
 inp_folder = '/Users/oscar/Documents/GeorgiaTech/BigDataForHealth/BD4H_PROJECT/BD4H_Final_Project'
 
+<<<<<<< Updated upstream
+=======
+inp_folder = "../data/unzipped_files"
+>>>>>>> Stashed changes
 
 
 df_icustays, df_patients, df_MICROBIOLOGY, df_diagnosis, df_procedures = import_tables(inp_folder)
@@ -94,6 +98,7 @@ print(df_all_events2.head())
 # X = [[48, 49, 50, 265, 1213]]
 X = list(df_all_events2['FEATURE_ID2'])
 # y = [0]
+<<<<<<< Updated upstream
 y = list(df_all_events2['SEPSIS'].astype('Int64'))
 
 length_features = len(codemap)
@@ -102,6 +107,15 @@ print(length_features)
 print(max_value)
 train_input = prepare(X,y,length_features)
 logreg(train_input,y)
+=======
+y = df_all_events2["SEPSIS"].astype('int')
+
+length_features = len(codemap)
+max_value = max(df_all_events2["FEATURE_ID2"])
+
+train_input = prepare(X, length_features)
+logreg(train_input, y)
+>>>>>>> Stashed changes
 
 # patient124 = df_all_events2[df_all_events2['SUBJECT_ID']==124]
 # print(list(patient124['FEATURE_ID2']))

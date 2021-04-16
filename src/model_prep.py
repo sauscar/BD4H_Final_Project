@@ -57,7 +57,6 @@ def prepare(seqs,labels,num_features):
     )
 
     # print(patient_sparse.todense()[:10, :10])
-    print(patient_sparse.shape)
 
 
     # print(emptyDF.shape)

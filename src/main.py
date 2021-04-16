@@ -9,7 +9,7 @@ inp_folder = '../data'
 
 
 
-df_icustays, df_patients, df_MICROBIOLOGY, df_diagnosis, df_procedures = import_tables(inp_folder)
+df_icustays, df_patients, df_MICROBIOLOGY, df_diagnosis, df_procedures, df_labevents = import_tables(inp_folder)
 
 ### ERIMA REMOVE BLANK HADM_IDs
 
@@ -44,12 +44,15 @@ print("DIAGNOSIS TABLE:",df_diagnosis.count())
 ### MAKE sure they all have four fields 'SUBJECT_ID','HADM_ID','ITEMID' OR ICD CODE,'CHARTTIME'
 df_MICROBIOLOGY = df_MICROBIOLOGY.rename(columns = {'SPEC_ITEMID': 'FEATURE_ID'})[['SUBJECT_ID', 'HADM_ID','FEATURE_ID']]
 
-list_of_dfs = [df_diagnosis, df_procedures,df_MICROBIOLOGY]
+df_labevents = df_labevents.rename(columns = {'ITEMID': 'FEATURE_ID'})[['SUBJECT_ID', 'HADM_ID','FEATURE_ID']]
+
+list_of_dfs = [df_diagnosis, df_procedures,df_MICROBIOLOGY,df_labevents]
 
 df_all_events = pd.concat(list_of_dfs)
 print("df_MICROBIOLOGY TABLE:",df_MICROBIOLOGY.count())
 print("df_procedures TABLE:",df_procedures.count())
 print("DIAGNOSIS TABLE:",df_diagnosis.count())
+print("LAB EVENTS TABLE:",df_labevents.count())
 print("all TABLE:",df_all_events.count())
 
 

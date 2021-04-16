@@ -54,11 +54,11 @@ df_all_events = pd.concat(list_of_dfs)
 
 ### ERIMA TODO ::: ADD LABEVENTS
 
-
+df_all_events = df_all_events.dropna()
 ### TODO build codemap for all ITEMID + features
 codemap = build_codemap(df_all_events['FEATURE_ID'])
 
-del codemap['nan']
+# del codemap['nan']
 
 # df_all_events = df_all_events[~(df_all_events['FEATURE_ID']=='nan')]
 df_all_events = df_all_events.dropna()

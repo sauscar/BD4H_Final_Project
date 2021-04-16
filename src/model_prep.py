@@ -1,5 +1,7 @@
 import pandas as pd
+import numpy as np
 from scipy import sparse
+import pdb
 
 def prepare(seqs,labels,num_features):
     # listMatrix = []
@@ -25,11 +27,20 @@ def prepare(seqs,labels,num_features):
     print(len(seqs))
     print(len(labels))
     for sublist in seqs:
-        
+        # pdb.set_trace()  
         col_Index =  sublist
         data_set = [1]*len(col_Index)
         row_Index = [0]*len(sublist)
-    
-        coo_matrix = sparse.coo_matrix((data_set, (row_Index,col_Index)),shape=(noOfVisits, num_features)).toarray()
+        # try:
+        pdb.set_trace()
+        coo_matrix = sparse.coo_matrix((data_set, (row_Index,col_Index)),shape=(noOfVisits, num_features+1)).toarray()
         listMatrix.append(coo_matrix)
-    print(listMatrix[0])
+    listMatrix = listMatrix.reshape(1,-1)
+    train_input = pd.DataFrame(listMatrix)
+        # except:
+        # 
+    print(train_input.head())
+    return train_input
+    
+
+   

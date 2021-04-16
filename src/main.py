@@ -60,18 +60,20 @@ codemap = build_codemap(df_all_events['FEATURE_ID'])
 
 del codemap['nan']
 
-df_all_events = df_all_events[~(df_all_events['FEATURE_ID']=='nan')]
+# df_all_events = df_all_events[~(df_all_events['FEATURE_ID']=='nan')]
+df_all_events = df_all_events.dropna()
 
 df_all_events['FEATURE_ID2'] = df_all_events['FEATURE_ID'].map(codemap)
 
 df_all_events['FEATURE_ID2'] = df_all_events['FEATURE_ID2'].astype('Int64')
+df_all_events = df_all_events.dropna()
 
 # TODO: 4. Group the visits for the same patient and admission
 #df_all_events = df_all_events.sort_values(by=['SUBJECT_ID', 'ADMITTIME']) ## LATER SEQUENCE IF WE FIND A WAY
 
 df_all_events2 = df_all_events.groupby(['SUBJECT_ID', 'HADM_ID'])["FEATURE_ID2"].apply(list).reset_index()
 # df_all_events2 = df_all_events2.groupby(['SUBJECT_ID'])["FEATURE_ID2"].apply(list).reset_index()              ### GROUP ON PATIENTS to get LIST of LISTS
-print(df_all_events2.head())
+# print(df_all_events2.head())
 
 ### TODO MERGE sepsis at hadmid
 df_sepsis['SEPSIS'] = 1
@@ -86,12 +88,18 @@ df_all_events2 = df_all_events2.merge(df_sepsis[['SUBJECT_ID','HADM_ID','SEPSIS'
 
 
 df_all_events2['SEPSIS'] = df_all_events2['SEPSIS'].fillna(0)
+df_all_events2 = df_all_events2.dropna()
+
 print(df_all_events2.head())
+# X = [[48, 49, 50, 265, 1213]]
 X = list(df_all_events2['FEATURE_ID2'])
+# y = [0]
 y = list(df_all_events2['SEPSIS'].astype('Int64'))
 
 length_features = len(codemap)
-
+max_value = max(df_all_events2['FEATURE_ID2'])
+print(length_features)
+print(max_value)
 prepare(X,y,length_features)
 logreg(X,y)
 

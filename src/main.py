@@ -103,7 +103,7 @@ length_features = len(codemap)
 max_value = max(df_all_events2["FEATURE_ID2"])
 print(length_features)
 print(max_value)
-train_input = prepare(X, y, length_features)
+train_input = prepare(X, length_features)
 logreg(train_input, y)
 
 # patient124 = df_all_events2[df_all_events2['SUBJECT_ID']==124]

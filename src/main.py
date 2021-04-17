@@ -7,7 +7,7 @@ from model_prep import prepare
 from models import logreg
 from utils import build_codemap, convert_icd9, read_table
 
-inp_folder = "./data/unzipped_files"
+inp_folder = "../data/unzipped_files"
 
 
 df_icustays, df_patients, df_MICROBIOLOGY, df_diagnosis, df_procedures = import_tables(inp_folder)

@@ -51,4 +51,3 @@ def import_tables(inp_folder):
     df_procedures = df_procedures[["SUBJECT_ID", "HADM_ID", "SEQ_NUM", "ICD9_CODE"]]
 
     return df_icustays, df_patients, df_MICROBIOLOGY, df_diagnosis, df_procedures  # , df_labevents
-

@@ -43,3 +43,4 @@ dependencies:
       - sklearn==0.0
       - threadpoolctl==2.1.0
       - torch==1.8.1
+      - lightgbm==3.2.1

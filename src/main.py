@@ -4,10 +4,10 @@ import pandas as pd
 
 from create_datasets import import_tables
 from model_prep import prepare
-from models import logreg
+from models import lightgbm, logreg
 from utils import build_codemap, convert_icd9, read_table
 
-inp_folder = "../data/unzipped_files"
+inp_folder = "./data/unzipped_files"
 
 
 df_icustays, df_patients, df_MICROBIOLOGY, df_diagnosis, df_procedures = import_tables(inp_folder)
@@ -105,6 +105,8 @@ print(length_features)
 print(max_value)
 train_input = prepare(X, length_features)
 logreg(train_input, y)
+
+lightgbm(train_input, y)
 
 # patient124 = df_all_events2[df_all_events2['SUBJECT_ID']==124]
 # print(list(patient124['FEATURE_ID2']))

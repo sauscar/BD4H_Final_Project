@@ -4,14 +4,13 @@ from pyspark.sql import SparkSession
 
 from utils import read_table, read_table_spark
 
-inp_folder = "../data/mimic-unzipped"
+inp_folder = "data/unzipped_files"
 
 
 def import_tables(inp_folder):
 
     spark = SparkSession.builder.appName("Sepsis_Prediction").getOrCreate()
     ####ICU STAYS
-
     filename = "ICUSTAYS.csv"
     df_icustays = read_table(inp_folder, filename)
 

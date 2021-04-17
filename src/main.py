@@ -93,7 +93,7 @@ print(df_all_events2.head())
 # X = [[48, 49, 50, 265, 1213]]
 X = list(df_all_events2['FEATURE_ID2'])
 # y = [0]
-y = list(df_all_events2['SEPSIS'].astype('Int64'))
+y = df_all_events2['SEPSIS'].astype('int')
 
 length_features = len(codemap)
 max_value = max(df_all_events2['FEATURE_ID2'])
@@ -102,11 +102,6 @@ print(max_value)
 train_input = prepare(X,y,length_features)
 logreg(train_input,y)
 
-# patient124 = df_all_events2[df_all_events2['SUBJECT_ID']==124]
-# print(list(patient124['FEATURE_ID2']))
-# print(df_all_events2.head())
-# sepsis_df_after = df_all_events2[df_all_events2['SEPSIS']==1]
-# featureID2_sepsis_list = list(sepsis_df_after['FEATURE_ID2'])
 
 # TODO: 5. Make a visit sequence dataset as a List of patient Lists of visit Lists
 # TODO: Visits for each patient must be sorted in chronological order.

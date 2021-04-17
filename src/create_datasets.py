@@ -29,14 +29,7 @@ def import_tables(inp_folder):
     print('FILTERED RECORDS in ', df_MICROBIOLOGY.shape)
 
     ### LABEVENTS
-<<<<<<< Updated upstream
     '''df_labevents = read_table(inp_folder,filename = 'LABEVENTS.csv')
-=======
-    # list_cols = ["SUBJECT_ID", "HADM_ID", "ICUSTAY_ID", "ITEMID", "CHARTTIME"]
-    # df_chartevents = read_table_spark(spark, inp_folder, "CHARTEVENTS.csv", list_cols)
-
-    """df_labevents = read_table(inp_folder,filename = 'LABEVENTS.csv')
->>>>>>> Stashed changes
     df_labevents = df_labevents[df_labevents['SUBJECT_ID'].isin(unq_ICU_patients)]
     df_labevents = df_labevents[df_labevents['FLAG']=='abnormal']
     df_labevents = df_labevents[['SUBJECT_ID','HADM_ID','ITEMID','CHARTTIME']]

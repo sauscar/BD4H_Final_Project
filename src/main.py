@@ -7,8 +7,6 @@ from utils import convert_icd9
 from models import logreg
 from model_prep import prepare
 
-inp_folder = '/Users/oscar/Documents/GeorgiaTech/BigDataForHealth/BD4H_PROJECT/BD4H_Final_Project'
-
 inp_folder = "../data/unzipped_files"
 
 

@@ -29,5 +29,5 @@ def logreg(X,y):
     
         
 
-    print(metrics.roc_auc_score(y_test, y_pred))
+    print(metrics.roc_auc_score(y_test, pred_values))
 

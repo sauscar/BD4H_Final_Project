@@ -1,6 +1,7 @@
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split, cross_val_predict, KFold
 from sklearn import metrics
+from lightgbm import LGBMClassifier
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import KFold, cross_val_predict, train_test_split
@@ -25,11 +26,9 @@ def logreg(X,y):
         lrm.fit(X_train,y_train)
         pred_values = lrm.predict(X_test)
         
-        roc = metrics.roc_auc_score(pred_values , y_test)
+        roc = metrics.roc_auc_score(y_test,pred_values )
         roc_score.append(round(roc,4))
 
-        roc = metrics.roc_auc_score(y_test,pred_values)
-        roc_score.append(roc)
 
     avg_roc_score = sum(roc_score) / k
 

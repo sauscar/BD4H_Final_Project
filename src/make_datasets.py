@@ -4,13 +4,25 @@ import pandas as pd
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
 from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 
-from utils import build_codemap, convert_icd9, create_sequence_data, read_table, read_table_spark
+from utils import (
+    build_codemap,
+    calculate_num_features,
+    create_sequence_data,
+    event_collate_fn,
+    read_table,
+    read_table_spark,
+)
 
 inp_folder = "data/unzipped_files"
 
 
 class CreateDataset:
+
+    BATCH_SIZE = 32
+    NUM_WORKERS = 0
+
     def __init__(self, inp_folder):
         self.inp_folder = inp_folder
 
@@ -146,10 +158,10 @@ class CreateDataset:
         sepsis = df_all_events_by_admission[df_all_events_by_admission["SEPSIS"] == 1]
         non_sepsis = df_all_events_by_admission[df_all_events_by_admission["SEPSIS"] == 0]
 
-        X_sepsis = sepsis.drop("SEPSIS")
+        X_sepsis = sepsis.drop("SEPSIS", axis=1)
         Y_sepsis = sepsis["SEPSIS"]
 
-        X_non_sepsis = non_sepsis.drop("SEPSIS")
+        X_non_sepsis = non_sepsis.drop("SEPSIS", axis=1)
         Y_non_sepsis = non_sepsis["SEPSIS"]
 
         # split the train/val test on both sepsis and non-sepsis cases
@@ -165,19 +177,32 @@ class CreateDataset:
         ) = train_test_split(X_non_sepsis, Y_non_sepsis, test_size=ratio[-1], random_state=7)
 
         # collect the test set
-        test_set = (X_test_sepsis, Y_test_sepsis)
+        test_set = (
+            pd.concat([X_test_sepsis, X_test_no_sepsis]),
+            pd.concat([Y_test_sepsis, Y_test_no_sepsis]),
+        )
 
         # split the train val on both sepsis and non-sepsis cases
         (X_train_sepsis, X_val_sepsis, Y_train_sepsis, Y_val_sepsis) = train_test_split(
-            X_sepsis, Y_sepsis, test_size=ratio[-1], random_state=7
+            X_train_val_sepsis, Y_train_val_sepsis, test_size=ratio[1], random_state=7
         )
 
-        (
-            X_train_val_no_sepsis,
-            X_test_no_sepsis,
-            Y_train_val_no_sepsis,
-            Y_test_no_sepsis,
-        ) = train_test_split(X_non_sepsis, Y_non_sepsis, test_size=ratio[-1], random_state=7)
+        (X_train_no_sepsis, X_val_no_sepsis, Y_train_no_sepsis, Y_val_no_sepsis) = train_test_split(
+            X_train_val_no_sepsis, Y_train_val_no_sepsis, test_size=ratio[1], random_state=7
+        )
+
+        # collect the training set
+        train_set = (
+            pd.concat([X_train_sepsis, X_train_no_sepsis]),
+            pd.concat([Y_train_sepsis, Y_train_no_sepsis]),
+        )
+        # collect the validation set
+        validation_set = (
+            pd.concat([X_val_sepsis, X_val_no_sepsis]),
+            pd.concat([Y_val_sepsis, Y_val_no_sepsis]),
+        )
+
+        return train_set, validation_set, test_set
 
     def generate_sepsis_event(self, df_all_events_by_admission, df_diagnosis):
         """ Generate sepis event """
@@ -201,9 +226,9 @@ class CreateDataset:
         )
         df_all_events_by_admission["SEPSIS"] = df_all_events_by_admission["SEPSIS"].fillna(0)
         df_all_events_by_admission = df_all_events_by_admission.dropna()
-        y = list(df_all_events_by_admission["SEPSIS"].astype("Int64"))
+        # y = list(df_all_events_by_admission["SEPSIS"].astype("Int64"))
 
-        return y
+        return df_all_events_by_admission
 
     def generate_all_events_by_admission(self, df_microbiology, df_labevents):
         """ Convert to sequence events data based on 1 day window """
@@ -227,6 +252,11 @@ class CreateDataset:
         self.codemap = build_codemap(df_all_events["FEATURE"])
 
         df_all_events["FEATURE_ID"] = df_all_events["FEATURE"].map(self.codemap)
+
+        # if the feature_id is not in code map, drop it
+        df_all_events.dropna(inplace=True)
+
+        df_all_events["FEATURE_ID"] = df_all_events["FEATURE_ID"].astype(int)
         df_all_events["HADM_ID"] = df_all_events["HADM_ID"].astype(int)
         # first seen events
         df_first_seen = (
@@ -256,14 +286,58 @@ class CreateDataset:
             .apply(list)
             .reset_index()
         )
+        df_all_events_by_admission.dropna(inplace=True)
         print("NUMBER OF ADMISSIONS:", len(df_all_events_by_admission))
         return df_all_events_by_admission
 
     def generate_sequence_data(self, df_all_events_by_admission):
+        """ 
+        Create sequence data based on events sequence
+            Example for 5 total feautures: 
+            Input: [[3], [0, 2], [4, 1]]
+            Ouput: [[0, 0, 0, 1, 0, 0], [1, 0, 1, 0, 0, 0], [0, 1, 0, 0, 1, 0]]
+        """
         # create sequence data
-        train_seqs = [
+        seqs = [
             create_sequence_data(seq, len(self.codemap))
             for seq in list(df_all_events_by_admission["FEATURE_ID"])
         ]
-        return train_seqs
+        return seqs
 
+    def generate_torch_dataset_loaders(self, seqs, labels, num_features):
+        """ Generate a torch dataset object using the input sequence, labels and num_features """
+        # generate SequenceWithLabelDataset object
+        dataset = SequenceWithLabelDataset(seqs, labels, num_features)
+        # generate torch data_loader
+        data_loader = DataLoader(
+            dataset=dataset,
+            batch_size=self.BATCH_SIZE,
+            shuffle=True,
+            collate_fn=event_collate_fn,
+            num_workers=self.NUM_WORKERS,
+        )
+        return data_loader
+
+
+class SequenceWithLabelDataset(Dataset):
+    def __init__(self, seqs, labels, num_features):
+        """
+		Args:
+			seqs (list): list of patients (list) of visits (list) of codes (int) that contains visit sequences
+			labels (list): list of labels (int)
+			num_features (int): number of total features available
+		"""
+
+        if len(seqs) != len(labels):
+            raise ValueError("Seqs and Labels have different lengths")
+
+        self.labels = labels
+        self.num_features = num_features
+        self.seqs = seqs
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, index):
+        # returns will be wrapped as List of Tensor(s) by DataLoader
+        return self.seqs[index], self.labels[index]

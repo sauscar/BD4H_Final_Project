@@ -3,6 +3,7 @@ from datetime import datetime
 import pandas as pd
 
 from make_datasets import CreateDataset
+from utils import calculate_num_features
 
 # from models import lightgbm, logreg
 
@@ -10,31 +11,38 @@ inp_folder = "./data/unzipped_files"
 
 dataset = CreateDataset(inp_folder)
 
-(
-    df_icustays,
-    df_patients,
-    df_microbiology,
-    df_diagnosis,
-    df_procedures,
-    df_labevents,
-) = dataset.import_tables()
+(_, _, df_microbiology, df_diagnosis, _, df_labevents) = dataset.import_tables()
 
-
-### TODO convert_icd9 on diagnosis and procedures table
-# df_diagnosis["FEATURE"] = df_diagnosis["ICD9_CODE"].apply(convert_icd9)
-# print(df_diagnosis.head())
-
-
-### TODO Append all tables df_MICROBIOLOGY, df_labevents, df_diagnosis, df_procedures
-### MAKE sure they all have four fields 'SUBJECT_ID','HADM_ID','ITEMID' OR ICD CODE,'CHARTTIME'
-
+# roll up all events
 df_all_events_by_admission = dataset.generate_all_events_by_admission(df_microbiology, df_labevents)
 
-# training sequence
-train_seqs = dataset.generate_sequence_data(df_all_events_by_admission)
+### add sepis events
+df_all_events_by_admission_w_labels = dataset.generate_sepsis_event(
+    df_all_events_by_admission, df_diagnosis
+)
 
-### sepis events
-labels = dataset.generate_sepsis_event(df_all_events_by_admission, df_diagnosis)
+# train, validation and test split
+train_set, validation_set, test_set = dataset.train_validation_test_split(
+    df_all_events_by_admission_w_labels
+)
+
+# training sequence
+train_seqs = dataset.generate_sequence_data(train_set[0])
+val_seqs = dataset.generate_sequence_data(validation_set[0])
+test_seqs = dataset.generate_sequence_data(test_set[0])
+
+# labels
+train_labels = list(train_set[1].astype(int))
+val_labels = list(validation_set[1].astype(int))
+test_labels = list(test_set[1].astype(int))
+
+# number of features
+num_features = calculate_num_features(list(train_set[0]["FEATURE_ID"]))
+
+# generate torch dataset
+train_loader = dataset.generate_torch_dataset_loaders(train_seqs, train_labels, num_features)
+val_loader = dataset.generate_torch_dataset_loaders(val_seqs, val_labels, num_features)
+test_loader = dataset.generate_torch_dataset_loaders(test_seqs, test_labels, num_features)
 
 import pdb
 

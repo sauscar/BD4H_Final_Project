@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 
 from utils import build_codemap, convert_icd9, create_sequence_data, read_table, read_table_spark
 
-inp_folder = "data/unzipped_files"
+inp_folder = "../data/unzipped_files"
 
 
 class CreateDataset:

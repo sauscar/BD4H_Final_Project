@@ -6,7 +6,7 @@ from make_datasets import CreateDataset
 
 # from models import lightgbm, logreg
 
-inp_folder = "./data/unzipped_files"
+inp_folder = "../data/unzipped_files"
 
 dataset = CreateDataset(inp_folder)
 
@@ -36,9 +36,9 @@ train_seqs = dataset.generate_sequence_data(df_all_events_by_admission)
 ### sepis events
 labels = dataset.generate_sepsis_event(df_all_events_by_admission, df_diagnosis)
 
-import pdb
+# import pdb
 
-pdb.set_trace()
+# pdb.set_trace()
 
 # logreg(train_input, y)
 

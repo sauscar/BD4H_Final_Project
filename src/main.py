@@ -13,17 +13,9 @@ dataset = CreateDataset(inp_folder)
 
 (_, _, df_microbiology, df_diagnosis, _, df_labevents) = dataset.import_tables()
 
-
-### TODO convert_icd9 on diagnosis and procedures table
-# df_diagnosis["FEATURE"] = df_diagnosis["ICD9_CODE"].apply(convert_icd9)
-# print(df_diagnosis.head())
-
-
-### TODO Append all tables df_MICROBIOLOGY, df_labevents, df_diagnosis, df_procedures
-### MAKE sure they all have four fields 'SUBJECT_ID','HADM_ID','ITEMID' OR ICD CODE,'CHARTTIME'
-
 # roll up all events
 df_all_events_by_admission = dataset.generate_all_events_by_admission(df_microbiology, df_labevents)
+
 ### add sepis events
 df_all_events_by_admission_w_labels = dataset.generate_sepsis_event(
     df_all_events_by_admission, df_diagnosis

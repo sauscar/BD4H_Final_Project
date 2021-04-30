@@ -1,0 +1,223 @@
+from datetime import datetime
+
+import pandas as pd
+import pyspark.sql.functions as F
+from pyspark.sql import SparkSession
+from sklearn.model_selection import train_test_split
+
+from utils import build_codemap, convert_icd9, create_sequence_data, read_table, read_table_spark
+
+inp_folder = "data/unzipped_files"
+
+
+class CreateDataset:
+    def __init__(self, inp_folder):
+        self.inp_folder = inp_folder
+
+    def set_icustays(self):
+        self.icustays_file = "ICUSTAYS.csv"
+        self.icustays_colums = ["SUBJECT_ID", "HADM_ID", "ICUSTAY_ID", "INTIME", "OUTTIME"]
+
+    def set_patients(self, df_icustays):
+        self.patients_file = "PATIENTS.csv"
+        self.unq_ICU_patients = df_icustays.select("SUBJECT_ID").distinct()
+        self.patients_colums = ["SUBJECT_ID", "GENDER", "DOB", "DOD"]
+
+    def set_microbiology(self):
+        self.microbiology_file = "MICROBIOLOGYEVENTS.csv"
+        self.microbiology_names = "D_ITEMS.csv"
+        self.microbiology_columns = [
+            "SUBJECT_ID",
+            "HADM_ID",
+            "CHARTDATE",
+            "SPEC_ITEMID",
+            # "SPEC_TYPE_DESC",
+            # "ORG_ITEMID",
+            # "ISOLATE_NUM",
+            # "AB_ITEMID",
+            # "INTERPRETATION",
+        ]
+
+    def set_labevents(self):
+        self.labevents_file = "LABEVENTS.csv"
+        self.labevents_columns = [
+            "SUBJECT_ID",
+            "HADM_ID",
+            "ITEMID",
+            "FLAG",
+            "CHARTTIME",
+            # "VALUE",
+            # "VALUENUM",
+            # "VALUEUOM",
+        ]
+
+    def set_diagnosis_icd(self):
+        self.diagnosis_icd_file = "DIAGNOSES_ICD.csv"
+        self.diagnosis_icd_columns = ["SUBJECT_ID", "HADM_ID", "SEQ_NUM", "ICD9_CODE"]
+
+    def set_procedures(self):
+        self.procedures_file = "PROCEDURES_ICD.csv"
+        self.procedures_columns = ["SUBJECT_ID", "HADM_ID", "SEQ_NUM", "ICD9_CODE"]
+
+    def import_tables(self):
+        """ Import data from CSV using spark"""
+        spark = SparkSession.builder.appName("Sepsis_Prediction").getOrCreate()
+        spark.conf.set("park.sql.execution.arrow.pyspark.enabled", "true")
+
+        ####ICU STAYS
+        self.set_icustays()
+        df_icustays = read_table_spark(spark, inp_folder, self.icustays_file, self.icustays_colums)
+        df_icustays = df_icustays.withColumnRenamed("INTIME", "INDEX_DATE")
+
+        ## PATIENTS
+        self.set_patients(df_icustays)
+        df_patients = read_table_spark(spark, inp_folder, self.patients_file, self.patients_colums)
+        df_patients = df_patients.join(
+            self.unq_ICU_patients, df_patients["SUBJECT_ID"] == self.unq_ICU_patients["SUBJECT_ID"]
+        )
+        print("FILTERED RECORDS in ", df_patients.count())
+
+        ### MICROBIOLOGY
+        self.set_microbiology()
+        microbiology_names = read_table_spark(spark, inp_folder, self.microbiology_names)
+        df_microbiology = read_table_spark(
+            spark, inp_folder, self.microbiology_file, self.microbiology_columns
+        )
+        df_microbiology = df_microbiology.join(
+            self.unq_ICU_patients,
+            df_microbiology["SUBJECT_ID"] == self.unq_ICU_patients["SUBJECT_ID"],
+        )
+
+        # df_microbiology = df_microbiology.join(
+        #     microbiology_names, df_microbiology["SPEC_ITEMID"] == microbiology_names["ITEMID"]
+        # )
+        print("FILTERED RECORDS in ", df_microbiology.count())
+
+        ### LABEVENTS
+        # df_labevents = read_table_spark(spark, inp_folder, "LABEVENTS.csv", list_cols)
+        # df_labevents = df_labevents.join(
+        #     unq_ICU_patients, df_labevents["SUBJECT_ID"] == unq_ICU_patients["SUBJECT_ID"]
+        # )
+        # df_labevents = df_labevents.filter(F.col("FLAG") == "abnormal")
+
+        self.set_labevents()
+        df_labevents = read_table(inp_folder, self.labevents_file)
+        df_labevents = df_labevents[df_labevents["FLAG"] == "abnormal"]
+        print("FILTERED RECORDS in ", df_labevents.shape)
+
+        ### DIAGNOSIS
+        self.set_diagnosis_icd()
+        df_diagnosis = read_table_spark(
+            spark, inp_folder, self.diagnosis_icd_file, self.diagnosis_icd_columns
+        )
+
+        ### PROCEDURE
+        self.set_procedures()
+        df_procedures = read_table_spark(
+            spark, inp_folder, self.procedures_file, self.procedures_columns
+        )
+
+        return (
+            df_icustays.toPandas(),
+            df_patients.toPandas(),
+            df_microbiology.toPandas(),
+            df_diagnosis.toPandas(),
+            df_procedures.toPandas(),
+            df_labevents,
+        )
+
+    def train_validation_test_split(self, df_all_events_by_admission, ratio):
+        """ perform a train, validation and test split based on the input ratio """
+
+    def generate_sepsis_event(self, df_all_events_by_admission, df_diagnosis):
+        """ Generate sepis event """
+        # create df_sepsis
+        filter_condition1 = df_diagnosis["ICD9_CODE"] == "99592"
+        filter_condition2 = df_diagnosis["ICD9_CODE"] == "99591"
+        filter_condition3 = df_diagnosis["ICD9_CODE"] == "78552"
+        df_sepsis = df_diagnosis[filter_condition1 | filter_condition2 | filter_condition3]
+
+        df_sepsis["HADM_ID"] = df_sepsis["HADM_ID"].astype(int)
+        df_sepsis = df_sepsis.drop_duplicates(subset=["SUBJECT_ID", "HADM_ID"])
+        df_sepsis["SEPSIS"] = 1
+        print("SEPSIS TABLE:", df_sepsis.shape)
+
+        # join df_all_events_by_admission and create 0 and 1 indicator
+        df_all_events_by_admission = df_all_events_by_admission.merge(
+            df_sepsis[["SUBJECT_ID", "HADM_ID", "SEPSIS"]],
+            how="left",
+            left_on=["SUBJECT_ID", "HADM_ID"],
+            right_on=["SUBJECT_ID", "HADM_ID"],
+        )
+        df_all_events_by_admission["SEPSIS"] = df_all_events_by_admission["SEPSIS"].fillna(0)
+        df_all_events_by_admission = df_all_events_by_admission.dropna()
+        y = list(df_all_events_by_admission["SEPSIS"].astype("Int64"))
+
+        return y
+
+    def generate_all_events_by_admission(self, df_microbiology, df_labevents):
+        """ Convert to sequence events data based on 1 day window """
+        df_microbiology = df_microbiology[
+            ["SUBJECT_ID", "HADM_ID", "SPEC_ITEMID", "CHARTDATE"]
+        ].iloc[:, 1:]
+
+        df_microbiology = df_microbiology.rename(
+            columns={"SPEC_ITEMID": "FEATURE", "CHARTDATE": "CHARTTIME"}
+        )
+
+        df_labevents = df_labevents[["SUBJECT_ID", "HADM_ID", "CHARTTIME", "ITEMID"]]
+        df_labevents = df_labevents.rename(columns={"ITEMID": "FEATURE"})
+
+        list_of_dfs = [df_microbiology, df_labevents]
+
+        df_all_events = pd.concat(list_of_dfs)
+
+        print("all TABLE:", df_all_events.count())
+
+        df_all_events = df_all_events.dropna()
+
+        # build codemap for all ITEMID + features
+        self.codemap = build_codemap(df_all_events["FEATURE"])
+
+        df_all_events["FEATURE_ID"] = df_all_events["FEATURE"].map(self.codemap)
+        df_all_events["HADM_ID"] = df_all_events["HADM_ID"].astype(int)
+        df_all_events = df_all_events.dropna()
+
+        # first seen events
+        df_first_seen = (
+            pd.DataFrame(df_all_events.groupby("HADM_ID")["CHARTTIME"].min())
+            .rename(columns={"CHARTTIME": "FIRST_CHARTTIME"})
+            .reset_index()
+        )
+        df_all_events = pd.merge(df_all_events, df_first_seen, on="HADM_ID")
+
+        # create the time seq
+        df_all_events["TIME_SEQ"] = (
+            pd.to_datetime(df_all_events["CHARTTIME"])
+            - pd.to_datetime(df_all_events["FIRST_CHARTTIME"])
+        ).dt.days
+
+        df_all_events = df_all_events.sort_values(by=["SUBJECT_ID", "HADM_ID", "TIME_SEQ"])
+
+        # create rolled up sequence in a df column
+        df_all_events_by_time_seq = (
+            df_all_events.groupby(["SUBJECT_ID", "HADM_ID", "TIME_SEQ"])["FEATURE_ID"]
+            .apply(list)
+            .reset_index()
+        )
+
+        df_all_events_by_admission = (
+            df_all_events_by_time_seq.groupby(["SUBJECT_ID", "HADM_ID"])["FEATURE_ID"]
+            .apply(list)
+            .reset_index()
+        )
+        return df_all_events_by_admission
+
+    def generate_sequence_data(self, df_all_events_by_admission):
+        # create sequence data
+        train_seqs = [
+            create_sequence_data(seq, len(self.codemap))
+            for seq in list(df_all_events_by_admission["FEATURE_ID"])
+        ]
+        return train_seqs
+

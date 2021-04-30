@@ -117,17 +117,67 @@ class CreateDataset:
             spark, inp_folder, self.procedures_file, self.procedures_columns
         )
 
-        return (
+        # convert to pandas DataFrame
+        (df_icustays, df_patients, df_microbiology, df_diagnosis, df_procedures) = (
             df_icustays.toPandas(),
             df_patients.toPandas(),
             df_microbiology.toPandas(),
             df_diagnosis.toPandas(),
             df_procedures.toPandas(),
+        )
+
+        for df in [df_microbiology, df_diagnosis, df_labevents, df_procedures]:
+            df.dropna(subset=["HADM_ID"], inplace=True)
+            df["SUBJECT_ID"] = df["SUBJECT_ID"].astype(int)
+            df["HADM_ID"] = df["HADM_ID"].astype(int)
+
+        return (
+            df_icustays,
+            df_patients,
+            df_microbiology,
+            df_diagnosis,
+            df_procedures,
             df_labevents,
         )
 
-    def train_validation_test_split(self, df_all_events_by_admission, ratio):
+    def train_validation_test_split(self, df_all_events_by_admission, ratio=[0.8, 0.1, 0.1]):
         """ perform a train, validation and test split based on the input ratio """
+        # separate sepsis and non_sepsis cases
+        sepsis = df_all_events_by_admission[df_all_events_by_admission["SEPSIS"] == 1]
+        non_sepsis = df_all_events_by_admission[df_all_events_by_admission["SEPSIS"] == 0]
+
+        X_sepsis = sepsis.drop("SEPSIS")
+        Y_sepsis = sepsis["SEPSIS"]
+
+        X_non_sepsis = non_sepsis.drop("SEPSIS")
+        Y_non_sepsis = non_sepsis["SEPSIS"]
+
+        # split the train/val test on both sepsis and non-sepsis cases
+        (X_train_val_sepsis, X_test_sepsis, Y_train_val_sepsis, Y_test_sepsis) = train_test_split(
+            X_sepsis, Y_sepsis, test_size=ratio[-1], random_state=7
+        )
+
+        (
+            X_train_val_no_sepsis,
+            X_test_no_sepsis,
+            Y_train_val_no_sepsis,
+            Y_test_no_sepsis,
+        ) = train_test_split(X_non_sepsis, Y_non_sepsis, test_size=ratio[-1], random_state=7)
+
+        # collect the test set
+        test_set = (X_test_sepsis, Y_test_sepsis)
+
+        # split the train val on both sepsis and non-sepsis cases
+        (X_train_sepsis, X_val_sepsis, Y_train_sepsis, Y_val_sepsis) = train_test_split(
+            X_sepsis, Y_sepsis, test_size=ratio[-1], random_state=7
+        )
+
+        (
+            X_train_val_no_sepsis,
+            X_test_no_sepsis,
+            Y_train_val_no_sepsis,
+            Y_test_no_sepsis,
+        ) = train_test_split(X_non_sepsis, Y_non_sepsis, test_size=ratio[-1], random_state=7)
 
     def generate_sepsis_event(self, df_all_events_by_admission, df_diagnosis):
         """ Generate sepis event """
@@ -140,7 +190,7 @@ class CreateDataset:
         df_sepsis["HADM_ID"] = df_sepsis["HADM_ID"].astype(int)
         df_sepsis = df_sepsis.drop_duplicates(subset=["SUBJECT_ID", "HADM_ID"])
         df_sepsis["SEPSIS"] = 1
-        print("SEPSIS TABLE:", df_sepsis.shape)
+        print("NUMBER OF SEPSIS:", len(df_sepsis))
 
         # join df_all_events_by_admission and create 0 and 1 indicator
         df_all_events_by_admission = df_all_events_by_admission.merge(
@@ -157,6 +207,7 @@ class CreateDataset:
 
     def generate_all_events_by_admission(self, df_microbiology, df_labevents):
         """ Convert to sequence events data based on 1 day window """
+
         df_microbiology = df_microbiology[
             ["SUBJECT_ID", "HADM_ID", "SPEC_ITEMID", "CHARTDATE"]
         ].iloc[:, 1:]
@@ -172,24 +223,18 @@ class CreateDataset:
 
         df_all_events = pd.concat(list_of_dfs)
 
-        print("all TABLE:", df_all_events.count())
-
-        df_all_events = df_all_events.dropna()
-
         # build codemap for all ITEMID + features
         self.codemap = build_codemap(df_all_events["FEATURE"])
 
         df_all_events["FEATURE_ID"] = df_all_events["FEATURE"].map(self.codemap)
         df_all_events["HADM_ID"] = df_all_events["HADM_ID"].astype(int)
-        df_all_events = df_all_events.dropna()
-
         # first seen events
         df_first_seen = (
             pd.DataFrame(df_all_events.groupby("HADM_ID")["CHARTTIME"].min())
             .rename(columns={"CHARTTIME": "FIRST_CHARTTIME"})
             .reset_index()
         )
-        df_all_events = pd.merge(df_all_events, df_first_seen, on="HADM_ID")
+        df_all_events = pd.merge(df_all_events, df_first_seen, on="HADM_ID", how="left")
 
         # create the time seq
         df_all_events["TIME_SEQ"] = (
@@ -205,12 +250,13 @@ class CreateDataset:
             .apply(list)
             .reset_index()
         )
-
+        # convert datatype to int
         df_all_events_by_admission = (
             df_all_events_by_time_seq.groupby(["SUBJECT_ID", "HADM_ID"])["FEATURE_ID"]
             .apply(list)
             .reset_index()
         )
+        print("NUMBER OF ADMISSIONS:", len(df_all_events_by_admission))
         return df_all_events_by_admission
 
     def generate_sequence_data(self, df_all_events_by_admission):

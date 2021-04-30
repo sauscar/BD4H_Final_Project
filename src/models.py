@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from lightgbm import LGBMClassifier
+# from lightgbm import LGBMClassifier
 from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import KFold, cross_val_predict, train_test_split

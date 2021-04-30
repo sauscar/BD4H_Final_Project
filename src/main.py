@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-
+import pdb
 import pandas as pd
 
 from make_datasets import CreateDataset
@@ -53,15 +53,14 @@ val_labels = list(validation_set[1].astype(int))
 test_labels = list(test_set[1].astype(int))
 
 # number of features
-num_features = calculate_num_features(list(train_set[0]["FEATURE_ID"]))
 
+num_features = calculate_num_features(list(df_all_events_by_admission["FEATURE_ID"]))
 # generate torch dataset
 train_loader = dataset.generate_torch_dataset_loaders(train_seqs, train_labels, num_features)
 val_loader = dataset.generate_torch_dataset_loaders(val_seqs, val_labels, num_features)
 test_loader = dataset.generate_torch_dataset_loaders(test_seqs, test_labels, num_features)
 
 #### NEW STUFF MODEL TRAINING IS BELOW ####
-
 model = VariableRNN(num_features)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters())

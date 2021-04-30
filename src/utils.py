@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 from scipy import sparse
-
+import pdb
 
 def read_table(inp_folder, filename):
     path = inp_folder + "/" + filename
@@ -34,23 +34,24 @@ def build_codemap(feature_ids):
     feature_ids_unique = feature_ids.dropna().unique()
     # create code mapping
     codemap = {code: idx for idx, code in enumerate(feature_ids_unique)}
+	
+	
     return codemap
 
 
 def create_sequence_data(seqs, num_features):
     # create tuple indices
-    tuple_idx = [(i, j) for i in range(len(seqs)) for j in seqs[i]]
+	tuple_idx = [(i, j) for i in range(len(seqs)) for j in seqs[i]]
 
     # convert tuple indices, values to be all 1s
-    row_idxs, col_idxs = zip(*tuple_idx)
-    values = [1] * len(tuple_idx)
-
+	row_idxs, col_idxs = zip(*tuple_idx)
+	values = [1] * len(tuple_idx)
+	
     # create sparse matrix, with shape to be (number of visits, number of features)
-    patient_sparse = sparse.coo_matrix(
+	patient_sparse = sparse.coo_matrix(
         (values, (row_idxs, col_idxs)), shape=(len(seqs), num_features),
     )
-
-    return patient_sparse
+	return patient_sparse
 
 
 def calculate_num_features(seqs):
@@ -58,9 +59,8 @@ def calculate_num_features(seqs):
 	:param seqs:
 	:return: the calculated number of features
 	"""
-    # flatten the list twice to get the max index + 1
+	# flatten the list twice to get the max index + 1
     num_features = max(list(itertools.chain(*itertools.chain(*seqs)))) + 1
-
     return num_features
 
 

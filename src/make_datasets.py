@@ -1,5 +1,5 @@
 from datetime import datetime
-
+import pdb
 import pandas as pd
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
@@ -250,7 +250,8 @@ class CreateDataset:
 
         # build codemap for all ITEMID + features
         self.codemap = build_codemap(df_all_events["FEATURE"])
-
+        
+        
         df_all_events["FEATURE_ID"] = df_all_events["FEATURE"].map(self.codemap)
 
         # if the feature_id is not in code map, drop it
@@ -297,6 +298,7 @@ class CreateDataset:
             Input: [[3], [0, 2], [4, 1]]
             Ouput: [[0, 0, 0, 1, 0, 0], [1, 0, 1, 0, 0, 0], [0, 1, 0, 0, 1, 0]]
         """
+        # pdb.set_trace()
         # create sequence data
         seqs = [
             create_sequence_data(seq, len(self.codemap))

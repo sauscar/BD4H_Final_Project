@@ -1,13 +1,29 @@
+import os
 from datetime import datetime
-
+import pdb
 import pandas as pd
 
 from make_datasets import CreateDataset
-from utils import calculate_num_features
+from utils import calculate_num_features, train, evaluate
+from models import VariableRNN
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
 
 # from models import lightgbm, logreg
 
-inp_folder = "./data/unzipped_files"
+NUM_EPOCHS = 5
+USE_CUDA = False
+
+
+device = torch.device("cuda" if torch.cuda.is_available() and USE_CUDA else "cpu")
+torch.manual_seed(1)
+if device.type == "cuda":
+	torch.backends.cudnn.deterministic = True
+	torch.backends.cudnn.benchmark = False
+
+inp_folder = "../data/unzipped_files"
 
 dataset = CreateDataset(inp_folder)
 
@@ -37,16 +53,42 @@ val_labels = list(validation_set[1].astype(int))
 test_labels = list(test_set[1].astype(int))
 
 # number of features
-num_features = calculate_num_features(list(train_set[0]["FEATURE_ID"]))
 
+num_features = calculate_num_features(list(df_all_events_by_admission["FEATURE_ID"]))
 # generate torch dataset
 train_loader = dataset.generate_torch_dataset_loaders(train_seqs, train_labels, num_features)
 val_loader = dataset.generate_torch_dataset_loaders(val_seqs, val_labels, num_features)
 test_loader = dataset.generate_torch_dataset_loaders(test_seqs, test_labels, num_features)
 
-import pdb
+#### NEW STUFF MODEL TRAINING IS BELOW ####
+model = VariableRNN(num_features)
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters())
 
-pdb.set_trace()
+model.to(device)
+criterion.to(device)
+
+best_val_acc = 0.0
+train_losses, train_accuracies = [], []
+valid_losses, valid_accuracies = [], []
+for epoch in range(NUM_EPOCHS):
+	train_loss, train_accuracy = train(model, device, train_loader, criterion, optimizer, epoch)
+	valid_loss, valid_accuracy, valid_results = evaluate(model, device, val_loader, criterion)
+
+	train_losses.append(train_loss)
+	valid_losses.append(valid_loss)
+
+	train_accuracies.append(train_accuracy)
+	valid_accuracies.append(valid_accuracy)
+
+	is_best = valid_accuracy > best_val_acc  # let's keep the model that has the best accuracy, but you can also use another metric.
+	if is_best:
+		best_val_acc = valid_accuracy
+		# torch.save(model, os.path.join(PATH_OUTPUT, "MyVariableRNN.pth"), _use_new_zipfile_serialization = False)
+
+# import pdb
+
+# pdb.set_trace()
 
 # logreg(train_input, y)
 

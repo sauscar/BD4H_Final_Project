@@ -13,8 +13,9 @@ import torch.optim as optim
 
 # from models import lightgbm, logreg
 
-NUM_EPOCHS = 5
+NUM_EPOCHS = 1
 USE_CUDA = False
+PATH_OUTPUT = "../output/mortality/"
 
 
 device = torch.device("cuda" if torch.cuda.is_available() and USE_CUDA else "cpu")
@@ -69,14 +70,18 @@ model.to(device)
 criterion.to(device)
 
 best_val_acc = 0.0
-train_losses, train_accuracies, train_recalls = [], [], []
-valid_losses, valid_accuracies, valid_recalls = [], [], []
+# train_losses, train_accuracies, train_recalls = [], [], []
+train_losses, train_accuracies = [], []
+# valid_losses, valid_accuracies, valid_recalls = [], [], []
+valid_losses, valid_accuracies = [], []
 
 
 for epoch in range(NUM_EPOCHS):
-	train_loss, train_accuracy, train_recall = train(model, device, train_loader, criterion, optimizer, epoch)
-	valid_loss, valid_accuracy, valid_results, valid_recall = evaluate(model, device, val_loader, criterion)
+	# train_loss, train_accuracy, train_recall = train(model, device, train_loader, criterion, optimizer, epoch)
+	# valid_loss, valid_accuracy, valid_results, valid_recall = evaluate(model, device, val_loader, criterion)
 	
+	train_loss, train_accuracy= train(model, device, train_loader, criterion, optimizer, epoch)
+	valid_loss, valid_accuracy, valid_results = evaluate(model, device, val_loader, criterion)
 
 	train_losses.append(train_loss)
 	valid_losses.append(valid_loss)
@@ -85,15 +90,36 @@ for epoch in range(NUM_EPOCHS):
 	train_accuracies.append(train_accuracy)
 	valid_accuracies.append(valid_accuracy)
 	
-	train_recalls.append(train_recall)
-	valid_recalls.append(valid_recall)
+	# train_recalls.append(train_recall)
+	# valid_recalls.append(valid_recall)
 
 
 	is_best = valid_accuracy > best_val_acc  # let's keep the model that has the best accuracy, but you can also use another metric.
 	if is_best:
 		best_val_acc = valid_accuracy
-		# torch.save(model, os.path.join(PATH_OUTPUT, "MyVariableRNN.pth"), _use_new_zipfile_serialization = False)
+		torch.save(model, os.path.join(PATH_OUTPUT, "MyVariableRNN.pth"), _use_new_zipfile_serialization = False)
 
+best_model = torch.load(os.path.join(PATH_OUTPUT, "MyVariableRNN.pth"))
+
+def predict_mortality(model, device, data_loader):
+	model.eval()
+	# TODO: Evaluate the data (from data_loader) using model,
+	# TODO: return a List of probabilities
+	probas = []
+	with torch.no_grad():
+		for i, (input,target) in enumerate(data_loader):
+			if isinstance(input, tuple):
+				input = tuple([e.to(device) if type(e) == torch.Tensor else e for e in input])
+			else:
+				input = input.to(device)
+			# pdb.set_trace()		
+			output = model(input)
+			y_pred = output.numpy()[0][1]
+			probas.append(y_pred)
+
+	return probas
+
+test_prob = predict_mortality(best_model, device, test_loader)
 # import pdb
 
 # pdb.set_trace()

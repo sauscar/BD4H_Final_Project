@@ -1,5 +1,5 @@
 from data_transform.make_datasets import CreateDataset
-from utils import calculate_num_features
+from utils.utils import calculate_num_features
 
 inp_folder = "../data/unzipped_files"
 

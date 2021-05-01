@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 class VariableRNN(nn.Module):
     """ 
-    RNN model that takes in varying length of 
+    RNN model that takes in varying length of sequence
     """
 
     def __init__(self, dim_input):

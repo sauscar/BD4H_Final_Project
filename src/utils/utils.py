@@ -1,11 +1,14 @@
 import itertools
+import os
 import pdb
 import time
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
 from scipy import sparse
+from sklearn.metrics import confusion_matrix
 
 
 def read_table(inp_folder, filename):
@@ -141,26 +144,12 @@ def compute_batch_accuracy(output, target):
         return correct * 100.0 / batch_size
 
 
-def compute_batch_recall(output, target):
-    _, pred = output.max(1)
-    confusion_vector = pred / target
-    true_positives = torch.sum(confusion_vector == 1).item()
-    false_negatives = torch.sum(confusion_vector == 0).item()
-    if true_positives + false_negatives != 0:
-        recall = true_positives / (true_positives + false_negatives)
-    else:
-        recall = 0
-
-    return recall * 100
-
-
 def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10):
 
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     accuracy = AverageMeter()
-    recall = AverageMeter()
 
     model.train()
 
@@ -174,11 +163,10 @@ def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10
         else:
             input = input.to(device)
         target = target.to(device)
-        # print(input)
+
         optimizer.zero_grad()
         output = model(input)
-        # print(len(output))
-        # print(target)
+
         loss = criterion(output, target)
         assert not np.isnan(loss.item()), "Model diverged with loss = NaN"
 
@@ -191,7 +179,6 @@ def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10
 
         losses.update(loss.item(), target.size(0))
         accuracy.update(compute_batch_accuracy(output, target).item(), target.size(0))
-        recall.update(compute_batch_recall(output, target), target.size(0))
 
         if i % print_freq == 0:
             print(
@@ -199,8 +186,7 @@ def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10
                 "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
                 "Data {data_time.val:.3f} ({data_time.avg:.3f})\t"
                 "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
-                "Accuracy {acc.val:.3f} ({acc.avg:.3f})\t"
-				"Recall {rec.val:.3f} ({rec.avg:.3f})".format(
+                "Accuracy {acc.val:.3f} ({acc.avg:.3f})\t".format(
                     epoch,
                     i,
                     len(data_loader),
@@ -208,19 +194,15 @@ def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10
                     data_time=data_time,
                     loss=losses,
                     acc=accuracy,
-					rec = recall
                 )
             )
-    # 
-    return losses.avg, accuracy.avg, recall.avg
-    # 
+    return losses.avg, accuracy.avg
 
 
 def evaluate(model, device, data_loader, criterion, print_freq=10):
     batch_time = AverageMeter()
     losses = AverageMeter()
     accuracy = AverageMeter()
-    recall = AverageMeter()
     results = []
     model.eval()
     with torch.no_grad():
@@ -235,7 +217,6 @@ def evaluate(model, device, data_loader, criterion, print_freq=10):
 
             output = model(input)
 
-            # print(output)
             loss = criterion(output, target)
 
             # measure elapsed time
@@ -244,7 +225,6 @@ def evaluate(model, device, data_loader, criterion, print_freq=10):
 
             losses.update(loss.item(), target.size(0))
             accuracy.update(compute_batch_accuracy(output, target).item(), target.size(0))
-            recall.update(compute_batch_recall(output, target), target.size(0))
 
             y_true = target.detach().to("cpu").numpy().tolist()
             y_pred = output.detach().to("cpu").max(1)[1].numpy().tolist()
@@ -256,13 +236,87 @@ def evaluate(model, device, data_loader, criterion, print_freq=10):
                     "Test: [{0}/{1}]\t"
                     "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
                     "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
-                    "Accuracy {acc.val:.3f} ({acc.avg:.3f})\t"
-					"Recall {rec.val:.3f} ({rec.avg:.3f})".format(
-                        i, len(data_loader), batch_time=batch_time, loss=losses, acc=accuracy, rec = recall
+                    "Accuracy {acc.val:.3f} ({acc.avg:.3f})\t".format(
+                        i, len(data_loader), batch_time=batch_time, loss=losses, acc=accuracy,
                     )
                 )
-    # 
-    return losses.avg, accuracy.avg, results, recall.avg
+    return losses.avg, accuracy.avg, results
 
 
-# test_id = pickle.load(open(PATH_TEST_IDS, "rb"))
+def plot_learning_curves(
+    train_losses,
+    valid_losses,
+    train_accuracies,
+    valid_accuracies,
+    model_type="RNN for Sepsis Prediction",
+):
+    """Make plots for loss curves and accuracy curves."""
+    # plot loss curves
+    plt.figure(figsize=(10, 7))
+    plt.plot(np.arange(len(train_losses)), train_losses, label="Train Loss")
+    plt.plot(np.arange(len(valid_losses)), valid_losses, label="Validation Loss")
+    plt.ylabel("Loss")
+    plt.xlabel("epoch")
+    plt.legend(loc="best")
+    plt.title(f"{model_type} Model Losses Curve vs. Epoches")
+    if not os.path.exists("metrics/"):
+        os.makedirs("metrics/")
+    plt.savefig(f"metrics/{model_type}_loss_curves.png")
+
+    # plot accuracy curves
+    plt.figure(figsize=(10, 7))
+    plt.plot(np.arange(len(train_accuracies)), train_accuracies, label="Train Accuracy")
+    plt.plot(np.arange(len(valid_accuracies)), valid_accuracies, label="Validation Accuracy")
+    plt.ylabel("Loss")
+    plt.xlabel("epoch")
+    plt.legend(loc="best")
+    plt.title(f"{model_type} Model Accuracy Curve vs. Epoches")
+
+    # create directory if not exist
+    if not os.path.exists("metrics/"):
+        os.makedirs("metrics/")
+    plt.savefig(f"metrics/{model_type}_learning_curves.png")
+
+
+def plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Prediction"):
+    """ Make a confusion matrix """
+    # convert results to dataframe
+    results_df = pd.DataFrame(results, columns=("true", "predicted"))
+    # create mapping of true labels and their names
+    label_name_map = dict(zip(np.arange(0, 5, 1), class_names))
+    # get confusion matrix
+    C = confusion_matrix(
+        y_true=results_df["true"].map(label_name_map),
+        y_pred=results_df["predicted"].map(label_name_map),
+        labels=class_names,
+    )
+
+    # get normalized confusion matrix
+    normalzed_C = (C.T / C.astype(np.float).sum(axis=1)).T
+
+    # plot normalized confusion matrix
+    fig, ax = plt.subplots()
+    ax.imshow(normalzed_C, cmap="coolwarm")
+
+    # show all ticks
+    ax.set_xticks(np.arange(len(class_names)))
+    ax.set_yticks(np.arange(len(class_names)))
+
+    # label with the respective list entries
+    ax.set_xticklabels(class_names)
+    ax.set_yticklabels(class_names)
+
+    plt.setp(ax.get_xticklabels(), rotation=30, ha="right", rotation_mode="anchor")
+
+    # Loop over data dimensions and create text annotations
+    for i in range(len(class_names)):
+        for j in range(len(class_names)):
+            ax.text(j, i, round(normalzed_C[i, j], 3), ha="center", va="center")
+
+    ax.set_title(f"{model_type} Model Normalized Confusion Matrix")
+    fig.tight_layout()
+    # create directory if not exist
+    if not os.path.exists("metrics/"):
+        os.makedirs("metrics/")
+    fig.savefig(f"metrics/{model_type}_confusion_matrix.png")
+    plt.show()

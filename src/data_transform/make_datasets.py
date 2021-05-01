@@ -6,8 +6,7 @@ import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset, TensorDataset
-
-from utils import (
+from utils.utils import (
     build_codemap,
     calculate_num_features,
     create_sequence_data,
@@ -59,9 +58,6 @@ class CreateDataset:
             "ITEMID",
             "FLAG",
             "CHARTTIME",
-            # "VALUE",
-            # "VALUENUM",
-            # "VALUEUOM",
         ]
 
     def set_diagnosis_icd(self):
@@ -101,18 +97,9 @@ class CreateDataset:
             df_microbiology["SUBJECT_ID"] == self.unq_ICU_patients["SUBJECT_ID"],
         )
 
-        # df_microbiology = df_microbiology.join(
-        #     microbiology_names, df_microbiology["SPEC_ITEMID"] == microbiology_names["ITEMID"]
-        # )
         print("FILTERED RECORDS in ", df_microbiology.count())
 
         ### LABEVENTS
-        # df_labevents = read_table_spark(spark, inp_folder, "LABEVENTS.csv", list_cols)
-        # df_labevents = df_labevents.join(
-        #     unq_ICU_patients, df_labevents["SUBJECT_ID"] == unq_ICU_patients["SUBJECT_ID"]
-        # )
-        # df_labevents = df_labevents.filter(F.col("FLAG") == "abnormal")
-
         self.set_labevents()
         df_labevents = read_table(inp_folder, self.labevents_file)
         df_labevents = df_labevents[df_labevents["FLAG"] == "abnormal"]
@@ -284,7 +271,6 @@ class CreateDataset:
         all_events_filtered_icu = joined[joined["CHARTTIME"] < joined["INDEX_DATE"]]
 
         #### END ICUSTAY STUFF
-        # df_all_events = df_all_events.sort_values(by=["SUBJECT_ID", "HADM_ID", "TIME_SEQ"])
         df_all_events = all_events_filtered_icu.sort_values(
             by=["SUBJECT_ID", "HADM_ID", "TIME_SEQ"]
         )

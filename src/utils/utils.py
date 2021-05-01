@@ -10,7 +10,7 @@ import torch
 from scipy import sparse
 from sklearn.metrics import confusion_matrix
 
-import tensorly as tl
+# import tensorly as tl
 
 # from tensorly import unfold as tl_unfold
 # from tensorly.decomposition import parafac

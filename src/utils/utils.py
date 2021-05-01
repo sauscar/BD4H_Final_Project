@@ -259,9 +259,9 @@ def plot_learning_curves(
     plt.xlabel("epoch")
     plt.legend(loc="best")
     plt.title(f"{model_type} Model Losses Curve vs. Epoches")
-    if not os.path.exists("metrics/"):
-        os.makedirs("metrics/")
-    plt.savefig(f"metrics/{model_type}_loss_curves.png")
+    if not os.path.exists("../metrics/"):
+        os.makedirs("../metrics/")
+    plt.savefig(f"../metrics/{model_type}_loss_curves.png")
 
     # plot accuracy curves
     plt.figure(figsize=(10, 7))
@@ -273,9 +273,9 @@ def plot_learning_curves(
     plt.title(f"{model_type} Model Accuracy Curve vs. Epoches")
 
     # create directory if not exist
-    if not os.path.exists("metrics/"):
-        os.makedirs("metrics/")
-    plt.savefig(f"metrics/{model_type}_learning_curves.png")
+    if not os.path.exists("../metrics/"):
+        os.makedirs("../metrics/")
+    plt.savefig(f"../metrics/{model_type}_learning_curves.png")
 
 
 def plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Prediction"):
@@ -319,7 +319,7 @@ def plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Predi
     fig.tight_layout()
 
     # create directory if not exist
-    if not os.path.exists("metrics/"):
-        os.makedirs("metrics/")
-    fig.savefig(f"metrics/{model_type}_confusion_matrix.png")
+    if not os.path.exists("../metrics/"):
+        os.makedirs("../metrics/")
+    fig.savefig(f"../metrics/{model_type}_confusion_matrix.png")
     plt.show()

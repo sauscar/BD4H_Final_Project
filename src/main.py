@@ -1,89 +1,139 @@
-from utils import read_table
+import os
 from datetime import datetime
-from create_datasets import import_tables
+import pdb
 import pandas as pd
-from utils import build_codemap
-from utils import convert_icd9
 
-inp_folder = '../data'
+from make_datasets import CreateDataset
+from utils import calculate_num_features, train, evaluate
+from models import VariableRNN
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
 
+# from models import lightgbm, logreg
 
-df_icustays, df_patients, df_MICROBIOLOGY, df_diagnosis, df_procedures, df_labevents = import_tables(inp_folder)
+NUM_EPOCHS = 1
+USE_CUDA = False
+PATH_OUTPUT = "../output/mortality/"
 
 ### ERIMA REMOVE BLANK HADM_IDs
 
+device = torch.device("cuda" if torch.cuda.is_available() and USE_CUDA else "cpu")
+torch.manual_seed(1)
+if device.type == "cuda":
+	torch.backends.cudnn.deterministic = True
+	torch.backends.cudnn.benchmark = False
 
-### TODO convert_icd9 on diagnosis and procedures table
-df_diagnosis['FEATURE_ID'] = df_diagnosis['ICD9_CODE'].apply(convert_icd9)
-print(df_diagnosis.head())
+inp_folder = "../data/unzipped_files"
 
+dataset = CreateDataset(inp_folder)
 
-df_procedures['FEATURE_ID'] = df_procedures['ICD9_CODE'].apply(convert_icd9)
-df_procedures = df_procedures[['SUBJECT_ID', 'HADM_ID','FEATURE_ID']]
-print(df_procedures.head())
+(df_icustays, _, df_microbiology, df_diagnosis, _, df_labevents) = dataset.import_tables()
 
-### TODO split sepsis from diagnosis table
-filter_condition1 = df_diagnosis['ICD9_CODE'] == '99592' 
-filter_condition2 = df_diagnosis['ICD9_CODE'] == '99591'
+# roll up all events
+df_all_events_by_admission = dataset.generate_all_events_by_admission(df_microbiology, df_labevents,df_icustays)
 
-print("ORIGINAL DIAGNOSIS TABLE:",df_diagnosis.count())
+### add sepis events
+df_all_events_by_admission_w_labels = dataset.generate_sepsis_event(
+    df_all_events_by_admission, df_diagnosis
+)
 
-df_sepsis = df_diagnosis[filter_condition1|filter_condition2]
-print("SEPSIS TABLE:",df_sepsis.count())
+# train, validation and test split
+train_set, validation_set, test_set = dataset.train_validation_test_split(
+    df_all_events_by_admission_w_labels
+)
 
-df_diagnosis = df_diagnosis[~(filter_condition1|filter_condition2)]
-df_diagnosis = df_diagnosis[['SUBJECT_ID', 'HADM_ID','FEATURE_ID']]
-print("DIAGNOSIS TABLE:",df_diagnosis.count())
+# training sequence
+train_seqs = dataset.generate_sequence_data(train_set[0])
+val_seqs = dataset.generate_sequence_data(validation_set[0])
+test_seqs = dataset.generate_sequence_data(test_set[0])
 
+# labels
+train_labels = list(train_set[1].astype(int))
+val_labels = list(validation_set[1].astype(int))
+test_labels = list(test_set[1].astype(int))
 
-### COUBLE CHECK SEPSIS IS NOT IN DIAGNOSIS TABLE
+# number of features
 
+num_features = calculate_num_features(list(df_all_events_by_admission["FEATURE_ID"]))
+# generate torch dataset
+train_loader = dataset.generate_torch_dataset_loaders(train_seqs, train_labels, num_features)
+val_loader = dataset.generate_torch_dataset_loaders(val_seqs, val_labels, num_features)
+test_loader = dataset.generate_torch_dataset_loaders(test_seqs, test_labels, num_features)
 
-### TODO Append all tables df_MICROBIOLOGY, df_labevents, df_diagnosis, df_procedures
-### MAKE sure they all have four fields 'SUBJECT_ID','HADM_ID','ITEMID' OR ICD CODE,'CHARTTIME'
-df_MICROBIOLOGY = df_MICROBIOLOGY.rename(columns = {'SPEC_ITEMID': 'FEATURE_ID'})[['SUBJECT_ID', 'HADM_ID','FEATURE_ID']]
+#### NEW STUFF MODEL TRAINING IS BELOW ####
+model = VariableRNN(num_features)
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters())
 
-df_labevents = df_labevents.rename(columns = {'ITEMID': 'FEATURE_ID'})[['SUBJECT_ID', 'HADM_ID','FEATURE_ID']]
+model.to(device)
+criterion.to(device)
 
-list_of_dfs = [df_diagnosis, df_procedures,df_MICROBIOLOGY,df_labevents]
-
-df_all_events = pd.concat(list_of_dfs)
-print("df_MICROBIOLOGY TABLE:",df_MICROBIOLOGY.count())
-print("df_procedures TABLE:",df_procedures.count())
-print("DIAGNOSIS TABLE:",df_diagnosis.count())
-print("LAB EVENTS TABLE:",df_labevents.count())
-print("all TABLE:",df_all_events.count())
-
-
-### ERIMA TODO ::: ADD LABEVENTS
-
-
-### TODO build codemap for all ITEMID + features
-codemap = build_codemap(df_all_events['FEATURE_ID'])
-#print(codemap)
-df_all_events['FEATURE_ID2'] = df_all_events['FEATURE_ID'].map(codemap)
-
-# TODO: 4. Group the visits for the same patient and admission
-#df_all_events = df_all_events.sort_values(by=['SUBJECT_ID', 'ADMITTIME']) ## LATER SEQUENCE IF WE FIND A WAY
-
-df_all_events2 = df_all_events.groupby(['SUBJECT_ID', 'HADM_ID'])["FEATURE_ID2"].apply(list).reset_index()
-print(df_all_events2.head())
-
-### TODO MERGE sepsis at hadmid
-df_sepsis['SEPSIS'] = 1
-print(df_sepsis.head())
-
-df_all_events2 = df_all_events2.merge(df_sepsis[['SUBJECT_ID','HADM_ID','SEPSIS']],
-					how='left',
-					left_on = ['SUBJECT_ID','HADM_ID'],
-					right_on = ['SUBJECT_ID','HADM_ID'])
-
-df_all_events2['SEPSIS'] = df_all_events2['SEPSIS'].fillna(0)
-print(df_all_events2.head())
-df_all_events2
+best_val_acc = 0.0
+# train_losses, train_accuracies, train_recalls = [], [], []
+train_losses, train_accuracies = [], []
+# valid_losses, valid_accuracies, valid_recalls = [], [], []
+valid_losses, valid_accuracies = [], []
 
 
+for epoch in range(NUM_EPOCHS):
+	# train_loss, train_accuracy, train_recall = train(model, device, train_loader, criterion, optimizer, epoch)
+	# valid_loss, valid_accuracy, valid_results, valid_recall = evaluate(model, device, val_loader, criterion)
+	
+	train_loss, train_accuracy= train(model, device, train_loader, criterion, optimizer, epoch)
+	valid_loss, valid_accuracy, valid_results = evaluate(model, device, val_loader, criterion)
+
+	train_losses.append(train_loss)
+	valid_losses.append(valid_loss)
+	
+
+	train_accuracies.append(train_accuracy)
+	valid_accuracies.append(valid_accuracy)
+	
+	# train_recalls.append(train_recall)
+	# valid_recalls.append(valid_recall)
+
+
+	is_best = valid_accuracy > best_val_acc  # let's keep the model that has the best accuracy, but you can also use another metric.
+	if is_best:
+		best_val_acc = valid_accuracy
+		torch.save(model, os.path.join(PATH_OUTPUT, "MyVariableRNN.pth"), _use_new_zipfile_serialization = False)
+
+best_model = torch.load(os.path.join(PATH_OUTPUT, "MyVariableRNN.pth"))
+
+def predict_mortality(model, device, data_loader):
+	model.eval()
+	# TODO: Evaluate the data (from data_loader) using model,
+	# TODO: return a List of probabilities
+	probas = []
+	with torch.no_grad():
+		for i, (input,target) in enumerate(data_loader):
+			if isinstance(input, tuple):
+				input = tuple([e.to(device) if type(e) == torch.Tensor else e for e in input])
+			else:
+				input = input.to(device)
+			# pdb.set_trace()		
+			output = model(input)
+			y_pred = output.numpy()[0][1]
+			probas.append(y_pred)
+
+	return probas
+
+test_prob = predict_mortality(best_model, device, test_loader)
+# import pdb
+
+# pdb.set_trace()
+
+# logreg(train_input, y)
+
+# lightgbm(train_input, y)
+
+# patient124 = df_all_events_by_admission[df_all_events_by_admission['SUBJECT_ID']==124]
+# print(list(patient124['FEATURE_ID']))
+# print(df_all_events_by_admission.head())
+# sepsis_df_after = df_all_events_by_admission[df_all_events_by_admission['SEPSIS']==1]
+# featureID2_sepsis_list = list(sepsis_df_after['FEATURE_ID'])
 
 # TODO: 5. Make a visit sequence dataset as a List of patient Lists of visit Lists
 # TODO: Visits for each patient must be sorted in chronological order.
@@ -92,9 +142,9 @@ df_all_events2
 # TODO: 6. Make patient-id List and label List also.
 # TODO: The order of patients in the three List output must be consistent.
 
-'''icu_id = df_diag_admit_mort['SUBJECT_ID'].to_list()
+"""icu_id = df_diag_admit_mort['SUBJECT_ID'].to_list()
 labels _ sepsis =  df_diag_admit_mort['MORTALITY'].to_list()
-seq_data = df_diag_admit_mort['FEATURE_ID'].to_list()'''
-'''patient_ids = [0, 1, 2]
+seq_data = df_diag_admit_mort['FEATURE_ID'].to_list()"""
+"""patient_ids = [0, 1, 2]
 labels = [1, 0, 1]
-seq_data = [[[0, 1], [2]], [[1, 3, 4], [2, 5]], [[3], [5]]]'''
+seq_data = [[[0, 1], [2]], [[1, 3, 4], [2, 5]], [[3], [5]]]"""

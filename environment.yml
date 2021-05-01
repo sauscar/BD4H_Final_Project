@@ -1,0 +1,47 @@
+name: final_project2
+channels:
+  - defaults
+dependencies:
+  - appdirs=1.4.4
+  - attrs=20.3.0
+  - black=19.10b0
+  - ca-certificates=2021.4.13
+  - certifi=2020.12.5
+  - click=7.1.2
+  - libcxx=10.0.0
+  - libffi=3.3
+  - mypy_extensions=0.4.3
+  - ncurses=6.2
+  - openssl=1.1.1k
+  - pathspec=0.7.0
+  - pip=21.0.1
+  - python=3.8.8
+  - readline=8.1
+  - regex=2021.4.4
+  - setuptools=52.0.0
+  - sqlite=3.35.4
+  - tk=8.6.10
+  - toml=0.10.2
+  - typed-ast=1.4.2
+  - typing_extensions=3.7.4.3
+  - wheel=0.36.2
+  - xz=5.2.5
+  - zlib=1.2.11
+  - pip:
+      - matplotlib==3.4.1
+      - numpy==1.20.2
+      - pandas==1.2.4
+      - pillow==8.2.0
+      - py4j==0.10.9
+      - pyparsing==2.4.7
+      - pyspark==3.1.1
+      - python-dateutil==2.8.1
+      - pytz==2021.1
+      - scikit-learn==0.24.1
+      - scipy==1.6.2
+      - six==1.15.0
+      - sklearn==0.0
+      - threadpoolctl==2.1.0
+      - torch==1.8.1
+      - lightgbm==3.2.1
+      - pyarrow==4.0.0

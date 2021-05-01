@@ -21,7 +21,7 @@ inp_folder = "../data/unzipped_files"
 
 class CreateDataset:
 
-    BATCH_SIZE = 32
+    BATCH_SIZE = 1
     NUM_WORKERS = 0
 
     def __init__(self, inp_folder):

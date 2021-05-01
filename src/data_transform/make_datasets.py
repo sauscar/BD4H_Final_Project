@@ -69,7 +69,7 @@ class CreateDataset:
         self.procedures_columns = ["SUBJECT_ID", "HADM_ID", "SEQ_NUM", "ICD9_CODE"]
 
     def import_tables(self):
-        """ Import data from CSV using spark"""
+        """Import data from CSV using spark"""
         spark = SparkSession.builder.appName("Sepsis_Prediction").getOrCreate()
         spark.conf.set("park.sql.execution.arrow.pyspark.enabled", "true")
 
@@ -141,7 +141,7 @@ class CreateDataset:
         )
 
     def train_validation_test_split(self, df_all_events_by_admission, ratio=[0.8, 0.1, 0.1]):
-        """ perform a train, validation and test split based on the input ratio """
+        """perform a train, validation and test split based on the input ratio"""
         # separate sepsis and non_sepsis cases
         sepsis = df_all_events_by_admission[df_all_events_by_admission["SEPSIS"] == 1]
         non_sepsis = df_all_events_by_admission[df_all_events_by_admission["SEPSIS"] == 0]
@@ -193,7 +193,7 @@ class CreateDataset:
         return train_set, validation_set, test_set
 
     def generate_sepsis_event(self, df_all_events_by_admission, df_diagnosis):
-        """ Generate sepis event """
+        """Generate sepis event"""
         # create df_sepsis
         filter_condition1 = df_diagnosis["ICD9_CODE"] == "99592"
         filter_condition2 = df_diagnosis["ICD9_CODE"] == "99591"
@@ -219,7 +219,7 @@ class CreateDataset:
         return df_all_events_by_admission
 
     def generate_all_events_by_admission(self, df_microbiology, df_labevents, df_icustays):
-        """ Convert to sequence events data based on 1 day window """
+        """Convert to sequence events data based on 1 day window"""
 
         df_microbiology = df_microbiology[
             ["SUBJECT_ID", "HADM_ID", "SPEC_ITEMID", "CHARTDATE"]
@@ -292,9 +292,9 @@ class CreateDataset:
         return df_all_events_by_admission
 
     def generate_sequence_data(self, df_all_events_by_admission):
-        """ 
+        """
         Create sequence data based on events sequence
-            Example for 5 total feautures: 
+            Example for 5 total feautures:
             Input: [[3], [0, 2], [4, 1]]
             Ouput: [[0, 0, 0, 1, 0, 0], [1, 0, 1, 0, 0, 0], [0, 1, 0, 0, 1, 0]]
         """
@@ -307,7 +307,7 @@ class CreateDataset:
         return seqs
 
     def generate_torch_dataset_loaders(self, seqs, labels, num_features):
-        """ Generate a torch dataset object using the input sequence, labels and num_features """
+        """Generate a torch dataset object using the input sequence, labels and num_features"""
         # generate SequenceWithLabelDataset object
         dataset = SequenceWithLabelDataset(seqs, labels, num_features)
         # generate torch data_loader
@@ -324,11 +324,11 @@ class CreateDataset:
 class SequenceWithLabelDataset(Dataset):
     def __init__(self, seqs, labels, num_features):
         """
-		Args:
-			seqs (list): list of patients (list) of visits (list) of codes (int) that contains visit sequences
-			labels (list): list of labels (int)
-			num_features (int): number of total features available
-		"""
+        Args:
+                seqs (list): list of patients (list) of visits (list) of codes (int) that contains visit sequences
+                labels (list): list of labels (int)
+                num_features (int): number of total features available
+        """
 
         if len(seqs) != len(labels):
             raise ValueError("Seqs and Labels have different lengths")

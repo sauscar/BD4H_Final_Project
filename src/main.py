@@ -18,7 +18,7 @@ from utils.utils import (
 train_loader, val_loader, test_loader, num_features = build_data_loaders()
 
 # train RNN model
-best_model, train_losses, valid_loss, train_accuracies, valid_accuracies = train_rnn_model(
+best_model, train_losses, valid_loss, train_accuracies, valid_accuracies, results = train_rnn_model(
     train_loader, val_loader, num_features
 )
 
@@ -28,4 +28,5 @@ display_test_metrics(best_model, test_loader)
 # plot learning curves
 plot_learning_curves(train_losses, valid_loss, train_accuracies, valid_accuracies)
 
-# plot confusion matrix
+# class_names = ["No Sepsis", "Sepsis"]
+# plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Prediction")

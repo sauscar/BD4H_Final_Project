@@ -16,11 +16,7 @@ class VariableRNN(nn.Module):
         # You may use the input argument 'dim_input', which is basically the number of features
         self.fc32 = nn.Linear(dim_input, 50)
         self.gru = nn.GRU(
-            input_size=50,
-            hidden_size=16,
-            num_layers=2,
-            dropout=0.15,
-            batch_first=True,
+            input_size=50, hidden_size=16, num_layers=2, dropout=0.15, batch_first=True,
         )
         self.fc2 = nn.Linear(16, 2)
 

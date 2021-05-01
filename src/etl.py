@@ -4,14 +4,14 @@ from utils.utils import calculate_num_features
 inp_folder = "../data/unzipped_files"
 
 
-def build_data_loaders():
+def build_data_loaders(batch_size):
     """ 
     Use CreateDataset object to build pytorch train, validation and test loader
     Input: None,
     Output: train_loader, val_loader, test_loader, num_features
     """
     # instantiate data
-    dataset = CreateDataset(inp_folder)
+    dataset = CreateDataset(inp_folder, batch_size)
 
     # import all tables
     (df_icustays, _, df_microbiology, df_diagnosis, _, df_labevents) = dataset.import_tables()

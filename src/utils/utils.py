@@ -6,14 +6,9 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import tensorly as tl
 import torch
 from scipy import sparse
 from sklearn.metrics import confusion_matrix
-
-# import tensorly as tl
-# from tensorly import unfold as tl_unfold
-# from tensorly.decomposition import parafac
 
 
 def read_table(inp_folder, filename):
@@ -58,8 +53,7 @@ def create_sequence_data(seqs, num_features):
 
     # create sparse matrix, with shape to be (number of visits, number of features)
     patient_sparse = sparse.coo_matrix(
-        (values, (row_idxs, col_idxs)),
-        shape=(len(seqs), num_features),
+        (values, (row_idxs, col_idxs)), shape=(len(seqs), num_features),
     )
     return patient_sparse
 
@@ -114,9 +108,6 @@ def event_collate_fn(batch):
     lengths_tensor = torch.LongTensor(lengths)
     labels_tensor = torch.LongTensor(labels)
 
-    # factors_tl = parafac(seqs_tensor, rank=382)
-
-    # return (factors_tl, lengths_tensor), labels_tensor
     return (seqs_tensor, lengths_tensor), labels_tensor
 
 
@@ -246,11 +237,7 @@ def evaluate(model, device, data_loader, criterion, print_freq=10):
                     "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
                     "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
                     "Accuracy {acc.val:.3f} ({acc.avg:.3f})\t".format(
-                        i,
-                        len(data_loader),
-                        batch_time=batch_time,
-                        loss=losses,
-                        acc=accuracy,
+                        i, len(data_loader), batch_time=batch_time, loss=losses, acc=accuracy,
                     )
                 )
     return losses.avg, accuracy.avg, results
@@ -322,6 +309,9 @@ def plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Predi
     ax.set_xticklabels(class_names)
     ax.set_yticklabels(class_names)
 
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("True")
+
     plt.setp(ax.get_xticklabels(), rotation=30, ha="right", rotation_mode="anchor")
 
     # Loop over data dimensions and create text annotations
@@ -336,4 +326,5 @@ def plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Predi
     if not os.path.exists("../metrics/"):
         os.makedirs("../metrics/")
     fig.savefig(f"../metrics/{model_type}_confusion_matrix.png")
+
     plt.show()

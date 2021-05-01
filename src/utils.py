@@ -136,12 +136,22 @@ def compute_batch_accuracy(output, target):
 
 		return correct * 100.0 / batch_size
 
+def compute_batch_recall(output, target):
+	# pdb.set_trace()
+	_, pred = output.max(1)
+	confusion_vector = pred/target
+	true_positives = torch.sum(confusion_vector == 1).item()
+	false_negatives = torch.sum(confusion_vector == 0).item()
+	recall = true_positives / (true_positives + false_negatives)
+	return recall*100
+
 def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10):
 
 	batch_time = AverageMeter()
 	data_time = AverageMeter()
 	losses = AverageMeter()
 	accuracy = AverageMeter()
+	recall = AverageMeter()
 
 	model.train()
 
@@ -172,23 +182,25 @@ def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10
 
 		losses.update(loss.item(), target.size(0))
 		accuracy.update(compute_batch_accuracy(output, target).item(), target.size(0))
+		recall.update(compute_batch_recall(output,target), target.size(0))
 
 		if i % print_freq == 0:
 			print('Epoch: [{0}][{1}/{2}]\t'
 					'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
 					'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
 					'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-					'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
+					'Accuracy {acc.val:.3f} ({acc.avg:.3f})\t'
+					'Recall {rec.val:.3f} ({rec.avg:.3f})'.format(
 				epoch, i, len(data_loader), batch_time=batch_time,
-				data_time=data_time, loss=losses, acc=accuracy))
+				data_time=data_time, loss=losses, acc=accuracy,rec = recall))
 
-	return losses.avg, accuracy.avg
+	return losses.avg, accuracy.avg, recall.avg
 
 def evaluate(model, device, data_loader, criterion, print_freq=10):
 	batch_time = AverageMeter()
 	losses = AverageMeter()
 	accuracy = AverageMeter()
-
+	recall = AverageMeter()
 	results = []
 	model.eval()
 	with torch.no_grad():
@@ -212,6 +224,8 @@ def evaluate(model, device, data_loader, criterion, print_freq=10):
 
 			losses.update(loss.item(), target.size(0))
 			accuracy.update(compute_batch_accuracy(output, target).item(), target.size(0))
+			recall.update(compute_batch_recall(output,target).item(), target.size(0))
+
 			y_true = target.detach().to('cpu').numpy().tolist()
 			y_pred = output.detach().to('cpu').max(1)[1].numpy().tolist()
 			
@@ -221,7 +235,8 @@ def evaluate(model, device, data_loader, criterion, print_freq=10):
 				print('Test: [{0}/{1}]\t'
 					  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
 					  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-					  'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
+					  'Accuracy {acc.val:.3f} ({acc.avg:.3f})\t'
+					  'Recall {rec.val:.3f} ({rec.avg:.3f})'.format(
 					i, len(data_loader), batch_time=batch_time, loss=losses, acc=accuracy))
 
-	return losses.avg, accuracy.avg, results
+	return losses.avg, accuracy.avg, results, 

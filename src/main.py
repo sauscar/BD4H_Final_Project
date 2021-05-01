@@ -27,10 +27,10 @@ inp_folder = "../data/unzipped_files"
 
 dataset = CreateDataset(inp_folder)
 
-(_, _, df_microbiology, df_diagnosis, _, df_labevents) = dataset.import_tables()
+(df_icustays, _, df_microbiology, df_diagnosis, _, df_labevents) = dataset.import_tables()
 
 # roll up all events
-df_all_events_by_admission = dataset.generate_all_events_by_admission(df_microbiology, df_labevents)
+df_all_events_by_admission = dataset.generate_all_events_by_admission(df_microbiology, df_labevents,df_icustays)
 
 ### add sepis events
 df_all_events_by_admission_w_labels = dataset.generate_sepsis_event(
@@ -69,17 +69,25 @@ model.to(device)
 criterion.to(device)
 
 best_val_acc = 0.0
-train_losses, train_accuracies = [], []
-valid_losses, valid_accuracies = [], []
+train_losses, train_accuracies, train_recalls = [], [], []
+valid_losses, valid_accuracies, valid_recalls = [], [], []
+
+
 for epoch in range(NUM_EPOCHS):
-	train_loss, train_accuracy = train(model, device, train_loader, criterion, optimizer, epoch)
-	valid_loss, valid_accuracy, valid_results = evaluate(model, device, val_loader, criterion)
+	train_loss, train_accuracy, train_recall = train(model, device, train_loader, criterion, optimizer, epoch)
+	valid_loss, valid_accuracy, valid_results, valid_recall = evaluate(model, device, val_loader, criterion)
+	
 
 	train_losses.append(train_loss)
 	valid_losses.append(valid_loss)
+	
 
 	train_accuracies.append(train_accuracy)
 	valid_accuracies.append(valid_accuracy)
+	
+	train_recalls.append(train_recall)
+	valid_recalls.append(valid_recall)
+
 
 	is_best = valid_accuracy > best_val_acc  # let's keep the model that has the best accuracy, but you can also use another metric.
 	if is_best:

@@ -48,9 +48,8 @@ def train_rnn_model(train_loader, val_loader, num_features):
         train_accuracies.append(train_accuracy)
         valid_accuracies.append(valid_accuracy)
 
-        is_best = (
-            valid_accuracy > best_val_acc
-        )  # let's keep the model that has the best accuracy, but you can also use another metric.
+        is_best = valid_accuracy > best_val_acc
+
         if is_best:
             best_val_acc = valid_accuracy
             torch.save(
@@ -60,4 +59,4 @@ def train_rnn_model(train_loader, val_loader, num_features):
             )
 
     best_model = torch.load(os.path.join(PATH_OUTPUT, "VariableRNN.pth"))
-    return (best_model, train_losses, valid_loss, train_accuracies, valid_accuracies)
+    return (best_model, train_losses, valid_losses, train_accuracies, valid_accuracies)

@@ -282,8 +282,10 @@ def plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Predi
     """ Make a confusion matrix """
     # convert results to dataframe
     results_df = pd.DataFrame(results, columns=("true", "predicted"))
+
     # create mapping of true labels and their names
     label_name_map = dict(zip(np.arange(0, 5, 1), class_names))
+
     # get confusion matrix
     C = confusion_matrix(
         y_true=results_df["true"].map(label_name_map),
@@ -315,6 +317,7 @@ def plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Predi
 
     ax.set_title(f"{model_type} Model Normalized Confusion Matrix")
     fig.tight_layout()
+
     # create directory if not exist
     if not os.path.exists("metrics/"):
         os.makedirs("metrics/")

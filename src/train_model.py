@@ -7,7 +7,7 @@ import torch.optim as optim
 from model_defintion.variable_rnn import VariableRNN
 from utils.utils import calculate_num_features, evaluate, train
 
-NUM_EPOCHS = 3
+NUM_EPOCHS = 2
 USE_CUDA = False
 PATH_OUTPUT = "../output/"
 os.makedirs(PATH_OUTPUT, exist_ok=True)
@@ -59,4 +59,11 @@ def train_rnn_model(train_loader, val_loader, num_features):
             )
 
     best_model = torch.load(os.path.join(PATH_OUTPUT, "VariableRNN.pth"))
-    return (best_model, train_losses, valid_losses, train_accuracies, valid_accuracies)
+    return (
+        best_model,
+        train_losses,
+        valid_losses,
+        train_accuracies,
+        valid_accuracies,
+        valid_results,
+    )

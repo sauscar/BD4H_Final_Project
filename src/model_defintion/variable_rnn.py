@@ -18,7 +18,7 @@ class VariableRNN(nn.Module):
         self.gru = nn.GRU(
             input_size=50,
             hidden_size=16,
-            num_layers=3,
+            num_layers=2,
             dropout=0.15,
             batch_first=True,
         )

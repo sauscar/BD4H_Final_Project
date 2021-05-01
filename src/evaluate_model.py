@@ -5,10 +5,11 @@ import torch
 import torch.nn as nn
 from sklearn import metrics
 from sklearn.metrics import accuracy_score, precision_score, recall_score
+from utils.utils import plot_confusion_matrix
 
 
 def predict_sepsis_probabiltiies(model, device, data_loader):
-    """ 
+    """
     Returns the predicted probability of sepsis
     Input: model, device and data_loader
     Output: predicted probability and labels as lists
@@ -37,7 +38,7 @@ def predict_sepsis_probabiltiies(model, device, data_loader):
 
 def display_test_metrics(model, test_loader, prob_threshold=0.3):
     """
-        displays the performance metrics on test sets
+    displays the performance metrics on test sets
     """
     # get test probabilities
     device = "cpu"
@@ -54,3 +55,6 @@ def display_test_metrics(model, test_loader, prob_threshold=0.3):
     print("Recall for test: ", recall)
     print("Accuracy for test: ", acc)
 
+    class_names = ["No Sepsis", "Sepsis"]
+    results = list(zip(labels_flat, test_binary))
+    plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Prediction")

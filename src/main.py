@@ -28,5 +28,5 @@ display_test_metrics(best_model, test_loader)
 # plot learning curves
 plot_learning_curves(train_losses, valid_loss, train_accuracies, valid_accuracies)
 
-class_names = ["No Sepsis", "Sepsis"]
-plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Prediction")
+# class_names = ["No Sepsis", "Sepsis"]
+# plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Prediction")

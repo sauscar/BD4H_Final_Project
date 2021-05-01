@@ -230,7 +230,7 @@ class CreateDataset:
 
         return df_all_events_by_admission
 
-    def generate_all_events_by_admission(self, df_microbiology, df_labevents):
+    def generate_all_events_by_admission(self, df_microbiology, df_labevents, df_icustays):
         """ Convert to sequence events data based on 1 day window """
 
         df_microbiology = df_microbiology[
@@ -253,7 +253,7 @@ class CreateDataset:
         
         
         df_all_events["FEATURE_ID"] = df_all_events["FEATURE"].map(self.codemap)
-
+        
         # if the feature_id is not in code map, drop it
         df_all_events.dropna(inplace=True)
 
@@ -273,7 +273,21 @@ class CreateDataset:
             - pd.to_datetime(df_all_events["FIRST_CHARTTIME"])
         ).dt.days
 
-        df_all_events = df_all_events.sort_values(by=["SUBJECT_ID", "HADM_ID", "TIME_SEQ"])
+
+        ### START ICUSTAY STUFF
+        # convert HADM in icustays to int and select relevant data
+        df_all_events['CHARTTIME'] = pd.to_datetime(df_all_events["CHARTTIME"])
+
+        df_icustays = df_icustays[['HADM_ID','ICUSTAY_ID','INDEX_DATE']]
+        df_icustays['INDEX_DATE'] = pd.to_datetime(df_icustays["INDEX_DATE"])
+        df_icustays['HADM_ID'] = df_icustays["HADM_ID"].astype(int)
+        joined = df_all_events.merge(df_icustays, on = 'HADM_ID', how = 'inner')
+        all_events_filtered_icu = joined[joined['CHARTTIME'] < joined['INDEX_DATE']]
+        # pdb.set_trace()
+
+        #### END ICUSTAY STUFF
+        # df_all_events = df_all_events.sort_values(by=["SUBJECT_ID", "HADM_ID", "TIME_SEQ"])
+        df_all_events = all_events_filtered_icu.sort_values(by=["SUBJECT_ID", "HADM_ID", "TIME_SEQ"])
 
         # create rolled up sequence in a df column
         df_all_events_by_time_seq = (

@@ -33,5 +33,6 @@ class VariableRNN(nn.Module):
         x, _ = pad_packed_sequence(packed_x, batch_first=True)
         # pass through the second layer
         x = self.fc2(x[:, -1, :])
+        # x = F.softmax(x,dim=1)
 
         return x

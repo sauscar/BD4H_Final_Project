@@ -6,6 +6,7 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import tensorly as tl
 import torch
 from scipy import sparse
 from sklearn.metrics import confusion_matrix

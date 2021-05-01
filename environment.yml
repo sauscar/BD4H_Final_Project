@@ -45,3 +45,4 @@ dependencies:
       - torch==1.8.1
       - lightgbm==3.2.1
       - pyarrow==4.0.0
+      - tensorly==0.6.0

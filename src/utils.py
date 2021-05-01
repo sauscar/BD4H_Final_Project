@@ -1,10 +1,12 @@
 import itertools
+import pdb
 import time
+
 import numpy as np
 import pandas as pd
 import torch
 from scipy import sparse
-import pdb
+
 
 def read_table(inp_folder, filename):
     path = inp_folder + "/" + filename
@@ -34,24 +36,23 @@ def build_codemap(feature_ids):
     feature_ids_unique = feature_ids.dropna().unique()
     # create code mapping
     codemap = {code: idx for idx, code in enumerate(feature_ids_unique)}
-	
-	
+
     return codemap
 
 
 def create_sequence_data(seqs, num_features):
     # create tuple indices
-	tuple_idx = [(i, j) for i in range(len(seqs)) for j in seqs[i]]
+    tuple_idx = [(i, j) for i in range(len(seqs)) for j in seqs[i]]
 
     # convert tuple indices, values to be all 1s
-	row_idxs, col_idxs = zip(*tuple_idx)
-	values = [1] * len(tuple_idx)
-	
+    row_idxs, col_idxs = zip(*tuple_idx)
+    values = [1] * len(tuple_idx)
+
     # create sparse matrix, with shape to be (number of visits, number of features)
-	patient_sparse = sparse.coo_matrix(
+    patient_sparse = sparse.coo_matrix(
         (values, (row_idxs, col_idxs)), shape=(len(seqs), num_features),
     )
-	return patient_sparse
+    return patient_sparse
 
 
 def calculate_num_features(seqs):
@@ -59,7 +60,7 @@ def calculate_num_features(seqs):
 	:param seqs:
 	:return: the calculated number of features
 	"""
-	# flatten the list twice to get the max index + 1
+    # flatten the list twice to get the max index + 1
     num_features = max(list(itertools.chain(*itertools.chain(*seqs)))) + 1
     return num_features
 
@@ -106,141 +107,160 @@ def event_collate_fn(batch):
 
     return (seqs_tensor, lengths_tensor), labels_tensor
 
+
 ##### NEW IS BELOW #####
 
+
 class AverageMeter(object):
-	"""Computes and stores the average and current value"""
+    """Computes and stores the average and current value"""
 
-	def __init__(self):
-		self.reset()
+    def __init__(self):
+        self.reset()
 
-	def reset(self):
-		self.val = 0
-		self.avg = 0
-		self.sum = 0
-		self.count = 0
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
 
-	def update(self, val, n=1):
-		self.val = val
-		self.sum += val * n
-		self.count += n
-		self.avg = self.sum / self.count
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
 
 def compute_batch_accuracy(output, target):
-	"""Computes the accuracy for a batch"""
-	with torch.no_grad():
+    """Computes the accuracy for a batch"""
+    with torch.no_grad():
 
-		batch_size = target.size(0)
-		_, pred = output.max(1)
-		correct = pred.eq(target).sum()
+        batch_size = target.size(0)
+        _, pred = output.max(1)
+        correct = pred.eq(target).sum()
 
-		return correct * 100.0 / batch_size
+        return correct * 100.0 / batch_size
 
-# def compute_batch_recall(output, target):
-# 	# pdb.set_trace()
-# 	_, pred = output.max(1)
-# 	confusion_vector = pred/target
-# 	true_positives = torch.sum(confusion_vector == 1).item()
-# 	false_negatives = torch.sum(confusion_vector == 0).item()
-# 	recall = true_positives / (true_positives + false_negatives)
-# 	return recall*100
+
+def compute_batch_recall(output, target):
+    _, pred = output.max(1)
+    confusion_vector = pred / target
+    true_positives = torch.sum(confusion_vector == 1).item()
+    false_negatives = torch.sum(confusion_vector == 0).item()
+    if true_positives + false_negatives != 0:
+        recall = true_positives / (true_positives + false_negatives)
+    else:
+        recall = "nan"
+
+    return recall * 100
+
 
 def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10):
 
-	batch_time = AverageMeter()
-	data_time = AverageMeter()
-	losses = AverageMeter()
-	accuracy = AverageMeter()
-	# recall = AverageMeter()
+    batch_time = AverageMeter()
+    data_time = AverageMeter()
+    losses = AverageMeter()
+    accuracy = AverageMeter()
+    # recall = AverageMeter()
 
-	model.train()
+    model.train()
 
-	end = time.time()
-	for i, (input, target) in enumerate(data_loader):
-		# measure data loading time
-		data_time.update(time.time() - end)
+    end = time.time()
+    for i, (input, target) in enumerate(data_loader):
+        # measure data loading time
+        data_time.update(time.time() - end)
 
-		if isinstance(input, tuple):
-			input = tuple([e.to(device) if type(e) == torch.Tensor else e for e in input])
-		else:
-			input = input.to(device)
-		target = target.to(device)
-		# print(input)
-		optimizer.zero_grad()
-		output = model(input)
-		# print(len(output))
-		# print(target)
-		loss = criterion(output, target)
-		assert not np.isnan(loss.item()), 'Model diverged with loss = NaN'
+        if isinstance(input, tuple):
+            input = tuple([e.to(device) if type(e) == torch.Tensor else e for e in input])
+        else:
+            input = input.to(device)
+        target = target.to(device)
+        # print(input)
+        optimizer.zero_grad()
+        output = model(input)
+        # print(len(output))
+        # print(target)
+        loss = criterion(output, target)
+        assert not np.isnan(loss.item()), "Model diverged with loss = NaN"
 
-		loss.backward()
-		optimizer.step()
+        loss.backward()
+        optimizer.step()
 
-		# measure elapsed time
-		batch_time.update(time.time() - end)
-		end = time.time()
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+        end = time.time()
 
-		losses.update(loss.item(), target.size(0))
-		accuracy.update(compute_batch_accuracy(output, target).item(), target.size(0))
-		# recall.update(compute_batch_recall(output,target), target.size(0))
+        losses.update(loss.item(), target.size(0))
+        accuracy.update(compute_batch_accuracy(output, target).item(), target.size(0))
+        # recall.update(compute_batch_recall(output, target), target.size(0))
 
-		if i % print_freq == 0:
-			print('Epoch: [{0}][{1}/{2}]\t'
-					'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-					'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-					'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-					'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
-				epoch, i, len(data_loader), batch_time=batch_time,
-				data_time=data_time, loss=losses, acc=accuracy))
-# 'Recall {rec.val:.3f} ({rec.avg:.3f})',rec = recall
-	return losses.avg, accuracy.avg
-	# , recall.avg
+        if i % print_freq == 0:
+            print(
+                "Epoch: [{0}][{1}/{2}]\t"
+                "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
+                "Data {data_time.val:.3f} ({data_time.avg:.3f})\t"
+                "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
+                "Accuracy {acc.val:.3f} ({acc.avg:.3f})".format(
+                    epoch,
+                    i,
+                    len(data_loader),
+                    batch_time=batch_time,
+                    data_time=data_time,
+                    loss=losses,
+                    acc=accuracy,
+                )
+            )
+    # 'Recall {rec.val:.3f} ({rec.avg:.3f})',rec = recall
+    return losses.avg, accuracy.avg
+    # , recall.avg
+
 
 def evaluate(model, device, data_loader, criterion, print_freq=10):
-	batch_time = AverageMeter()
-	losses = AverageMeter()
-	accuracy = AverageMeter()
-	# recall = AverageMeter()
-	results = []
-	model.eval()
-	with torch.no_grad():
-		end = time.time()
-		for i, (input, target) in enumerate(data_loader):
+    batch_time = AverageMeter()
+    losses = AverageMeter()
+    accuracy = AverageMeter()
+    # recall = AverageMeter()
+    results = []
+    model.eval()
+    with torch.no_grad():
+        end = time.time()
+        for i, (input, target) in enumerate(data_loader):
 
-			if isinstance(input, tuple):
-				input = tuple([e.to(device) if type(e) == torch.Tensor else e for e in input])
-			else:
-				input = input.to(device)
-			target = target.to(device)
+            if isinstance(input, tuple):
+                input = tuple([e.to(device) if type(e) == torch.Tensor else e for e in input])
+            else:
+                input = input.to(device)
+            target = target.to(device)
 
-			output = model(input)
-			
-			# print(output)
-			loss = criterion(output, target)
-			
-			# measure elapsed time
-			batch_time.update(time.time() - end)
-			end = time.time()
+            output = model(input)
 
-			losses.update(loss.item(), target.size(0))
-			accuracy.update(compute_batch_accuracy(output, target).item(), target.size(0))
-			# recall.update(compute_batch_recall(output,target).item(), target.size(0))
+            # print(output)
+            loss = criterion(output, target)
 
-			y_true = target.detach().to('cpu').numpy().tolist()
-			y_pred = output.detach().to('cpu').max(1)[1].numpy().tolist()
-			
-			results.extend(list(zip(y_true, y_pred)))
+            # measure elapsed time
+            batch_time.update(time.time() - end)
+            end = time.time()
 
-			if i % print_freq == 0:
-				print('Test: [{0}/{1}]\t'
-					  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-					  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-					  'Accuracy {acc.val:.3f} ({acc.avg:.3f})'
-					  .format(
-					i, len(data_loader), batch_time=batch_time, loss=losses, acc=accuracy))
-# 'Recall {rec.val:.3f} ({rec.avg:.3f})'
-	return losses.avg, accuracy.avg, results
-	# , recall.avg
+            losses.update(loss.item(), target.size(0))
+            accuracy.update(compute_batch_accuracy(output, target).item(), target.size(0))
+            # recall.update(compute_batch_recall(output, target).item(), target.size(0))
+
+            y_true = target.detach().to("cpu").numpy().tolist()
+            y_pred = output.detach().to("cpu").max(1)[1].numpy().tolist()
+
+            results.extend(list(zip(y_true, y_pred)))
+
+            if i % print_freq == 0:
+                print(
+                    "Test: [{0}/{1}]\t"
+                    "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
+                    "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
+                    "Accuracy {acc.val:.3f} ({acc.avg:.3f})".format(
+                        i, len(data_loader), batch_time=batch_time, loss=losses, acc=accuracy
+                    )
+                )
+    # 'Recall {rec.val:.3f} ({rec.avg:.3f})'
+    return losses.avg, accuracy.avg, results
+    # , recall.avg
 
 
 # test_id = pickle.load(open(PATH_TEST_IDS, "rb"))

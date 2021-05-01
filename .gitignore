@@ -5,3 +5,4 @@ data/
 src/__pycache__
 null
 .metals
+__pycache__

@@ -3,6 +3,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 # from lightgbm import LGBMClassifier
 from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
@@ -23,9 +24,6 @@ class VariableRNN(nn.Module):
     def forward(self, input_tuple):
         # build architecture
         x, lengths = input_tuple
-        import pdb
-        # pdb.set_trace()
-        
         # pass x through the first layer
         x = F.relu(self.fc32(x))
         # create packed sequence as input to the lstm

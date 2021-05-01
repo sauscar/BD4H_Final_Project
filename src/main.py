@@ -1,28 +1,28 @@
 import os
 from datetime import datetime
-import pdb
-import pandas as pd
 
-from make_datasets import CreateDataset
-from utils import calculate_num_features, train, evaluate
-from models import VariableRNN
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from make_datasets import CreateDataset
+from models import VariableRNN
+from utils import calculate_num_features, evaluate, train
 
 # from models import lightgbm, logreg
 
-NUM_EPOCHS = 1
+NUM_EPOCHS = 5
 USE_CUDA = False
-PATH_OUTPUT = "../output/mortality/"
+PATH_OUTPUT = "../output/"
+os.makedirs(PATH_OUTPUT, exist_ok=True)
 
 
 device = torch.device("cuda" if torch.cuda.is_available() and USE_CUDA else "cpu")
 torch.manual_seed(1)
 if device.type == "cuda":
-	torch.backends.cudnn.deterministic = True
-	torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 inp_folder = "../data/unzipped_files"
 
@@ -31,7 +31,9 @@ dataset = CreateDataset(inp_folder)
 (df_icustays, _, df_microbiology, df_diagnosis, _, df_labevents) = dataset.import_tables()
 
 # roll up all events
-df_all_events_by_admission = dataset.generate_all_events_by_admission(df_microbiology, df_labevents,df_icustays)
+df_all_events_by_admission = dataset.generate_all_events_by_admission(
+    df_microbiology, df_labevents, df_icustays
+)
 
 ### add sepis events
 df_all_events_by_admission_w_labels = dataset.generate_sepsis_event(
@@ -77,73 +79,49 @@ valid_losses, valid_accuracies = [], []
 
 
 for epoch in range(NUM_EPOCHS):
-	# train_loss, train_accuracy, train_recall = train(model, device, train_loader, criterion, optimizer, epoch)
-	# valid_loss, valid_accuracy, valid_results, valid_recall = evaluate(model, device, val_loader, criterion)
-	
-	train_loss, train_accuracy= train(model, device, train_loader, criterion, optimizer, epoch)
-	valid_loss, valid_accuracy, valid_results = evaluate(model, device, val_loader, criterion)
+    # train_loss, train_accuracy, train_recall = train(model, device, train_loader, criterion, optimizer, epoch)
+    # valid_loss, valid_accuracy, valid_results, valid_recall = evaluate(model, device, val_loader, criterion)
 
-	train_losses.append(train_loss)
-	valid_losses.append(valid_loss)
-	
+    train_loss, train_accuracy = train(model, device, train_loader, criterion, optimizer, epoch)
+    valid_loss, valid_accuracy, valid_results = evaluate(model, device, val_loader, criterion)
 
-	train_accuracies.append(train_accuracy)
-	valid_accuracies.append(valid_accuracy)
-	
-	# train_recalls.append(train_recall)
-	# valid_recalls.append(valid_recall)
+    train_losses.append(train_loss)
+    valid_losses.append(valid_loss)
 
+    train_accuracies.append(train_accuracy)
+    valid_accuracies.append(valid_accuracy)
 
-	is_best = valid_accuracy > best_val_acc  # let's keep the model that has the best accuracy, but you can also use another metric.
-	if is_best:
-		best_val_acc = valid_accuracy
-		torch.save(model, os.path.join(PATH_OUTPUT, "MyVariableRNN.pth"), _use_new_zipfile_serialization = False)
+    # train_recalls.append(train_recall)
+    # valid_recalls.append(valid_recall)
 
-best_model = torch.load(os.path.join(PATH_OUTPUT, "MyVariableRNN.pth"))
+    is_best = (
+        valid_accuracy > best_val_acc
+    )  # let's keep the model that has the best accuracy, but you can also use another metric.
+    if is_best:
+        best_val_acc = valid_accuracy
+        torch.save(
+            model,
+            os.path.join(PATH_OUTPUT, "VariableRNN.pth"),
+            _use_new_zipfile_serialization=False,
+        )
 
-def predict_mortality(model, device, data_loader):
-	model.eval()
-	# TODO: Evaluate the data (from data_loader) using model,
-	# TODO: return a List of probabilities
-	probas = []
-	with torch.no_grad():
-		for i, (input,target) in enumerate(data_loader):
-			if isinstance(input, tuple):
-				input = tuple([e.to(device) if type(e) == torch.Tensor else e for e in input])
-			else:
-				input = input.to(device)
-			# pdb.set_trace()		
-			output = model(input)
-			y_pred = output.numpy()[0][1]
-			probas.append(y_pred)
-
-	return probas
-
-test_prob = predict_mortality(best_model, device, test_loader)
-# import pdb
-
-# pdb.set_trace()
-
-# logreg(train_input, y)
-
-# lightgbm(train_input, y)
-
-# patient124 = df_all_events_by_admission[df_all_events_by_admission['SUBJECT_ID']==124]
-# print(list(patient124['FEATURE_ID']))
-# print(df_all_events_by_admission.head())
-# sepsis_df_after = df_all_events_by_admission[df_all_events_by_admission['SEPSIS']==1]
-# featureID2_sepsis_list = list(sepsis_df_after['FEATURE_ID'])
-
-# TODO: 5. Make a visit sequence dataset as a List of patient Lists of visit Lists
-# TODO: Visits for each patient must be sorted in chronological order.
+best_model = torch.load(os.path.join(PATH_OUTPUT, "VariableRNN.pth"))
 
 
-# TODO: 6. Make patient-id List and label List also.
-# TODO: The order of patients in the three List output must be consistent.
+def predict_sepsis(model, device, data_loader):
+    model.eval()
+    probas = []
+    with torch.no_grad():
+        for i, (input, target) in enumerate(data_loader):
+            if isinstance(input, tuple):
+                input = tuple([e.to(device) if type(e) == torch.Tensor else e for e in input])
+            else:
+                input = input.to(device)
+            output = model(input)
+            y_pred = output.numpy()[0][1]
+            probas.append(y_pred)
 
-"""icu_id = df_diag_admit_mort['SUBJECT_ID'].to_list()
-labels _ sepsis =  df_diag_admit_mort['MORTALITY'].to_list()
-seq_data = df_diag_admit_mort['FEATURE_ID'].to_list()"""
-"""patient_ids = [0, 1, 2]
-labels = [1, 0, 1]
-seq_data = [[[0, 1], [2]], [[1, 3, 4], [2, 5]], [[3], [5]]]"""
+    return probas
+
+
+test_prob = predict_sepsis(best_model, device, test_loader)

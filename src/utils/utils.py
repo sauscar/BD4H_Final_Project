@@ -10,7 +10,8 @@ import torch
 from scipy import sparse
 from sklearn.metrics import confusion_matrix
 
-# import tensorly as tl
+import tensorly as tl
+
 # from tensorly import unfold as tl_unfold
 # from tensorly.decomposition import parafac
 
@@ -335,4 +336,6 @@ def plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Predi
     if not os.path.exists("../metrics/"):
         os.makedirs("../metrics/")
     fig.savefig(f"../metrics/{model_type}_confusion_matrix.png")
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
     plt.show()

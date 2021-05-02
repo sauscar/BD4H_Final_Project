@@ -14,8 +14,8 @@ from utils.utils import (
     train,
 )
 
-NUM_EPOCHS = 5
-BATCH_SIZE = 32
+NUM_EPOCHS = 3
+BATCH_SIZE = 1
 USE_CUDA = False
 PATH_OUTPUT = "../output/"
 os.makedirs(PATH_OUTPUT, exist_ok=True)

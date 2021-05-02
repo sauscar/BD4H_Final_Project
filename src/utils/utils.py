@@ -10,14 +10,6 @@ import torch
 from scipy import sparse
 from sklearn.metrics import confusion_matrix
 
-<<<<<<< HEAD
-# import tensorly as tl
-
-# from tensorly import unfold as tl_unfold
-# from tensorly.decomposition import parafac
-
-=======
->>>>>>> main
 
 def read_table(inp_folder, filename):
     path = inp_folder + "/" + filename
@@ -61,7 +53,8 @@ def create_sequence_data(seqs, num_features):
 
     # create sparse matrix, with shape to be (number of visits, number of features)
     patient_sparse = sparse.coo_matrix(
-        (values, (row_idxs, col_idxs)), shape=(len(seqs), num_features),
+        (values, (row_idxs, col_idxs)),
+        shape=(len(seqs), num_features),
     )
     return patient_sparse
 
@@ -245,7 +238,11 @@ def evaluate(model, device, data_loader, criterion, print_freq=10):
                     "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
                     "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
                     "Accuracy {acc.val:.3f} ({acc.avg:.3f})\t".format(
-                        i, len(data_loader), batch_time=batch_time, loss=losses, acc=accuracy,
+                        i,
+                        len(data_loader),
+                        batch_time=batch_time,
+                        loss=losses,
+                        acc=accuracy,
                     )
                 )
     return losses.avg, accuracy.avg, results
@@ -334,10 +331,4 @@ def plot_confusion_matrix(results, class_names, model_type="RNN for Sepsis Predi
     if not os.path.exists("../metrics/"):
         os.makedirs("../metrics/")
     fig.savefig(f"../metrics/{model_type}_confusion_matrix.png")
-<<<<<<< HEAD
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-=======
-
->>>>>>> main
     plt.show()

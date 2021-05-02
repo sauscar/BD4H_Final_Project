@@ -1,18 +1,9 @@
 import os
-from datetime import datetime
-
-import pandas as pd
 
 from etl import build_data_loaders
 from evaluate_model import display_test_metrics
 from train_model import train_rnn_model
-from utils.utils import (
-    calculate_num_features,
-    evaluate,
-    plot_confusion_matrix,
-    plot_learning_curves,
-    train,
-)
+from utils.utils import plot_confusion_matrix, plot_learning_curves
 
 NUM_EPOCHS = 5
 BATCH_SIZE = 1

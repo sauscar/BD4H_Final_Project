@@ -1,6 +1,5 @@
 import itertools
 import os
-import pdb
 import time
 
 import matplotlib.pyplot as plt

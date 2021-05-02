@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from model_defintion.variable_rnn import VariableRNN
-from utils.utils import calculate_num_features, evaluate, train
+from utils.utils import evaluate, train
 
 
 def train_rnn_model(train_loader, val_loader, num_features, num_epochs, use_cuda, path_output):

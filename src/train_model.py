@@ -7,19 +7,14 @@ import torch.optim as optim
 from model_defintion.variable_rnn import VariableRNN
 from utils.utils import calculate_num_features, evaluate, train
 
-NUM_EPOCHS = 2
-USE_CUDA = False
-PATH_OUTPUT = "../output/"
-os.makedirs(PATH_OUTPUT, exist_ok=True)
 
-
-def train_rnn_model(train_loader, val_loader, num_features):
+def train_rnn_model(train_loader, val_loader, num_features, num_epochs, use_cuda, path_output):
     """
     Use train and validation loader to train the variable RNN model
     Input: train_loader, val_loader
     Output: trained best model
     """
-    device = torch.device("cuda" if torch.cuda.is_available() and USE_CUDA else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() and use_cuda else "cpu")
     torch.manual_seed(1)
     if device.type == "cuda":
         torch.backends.cudnn.deterministic = True
@@ -37,7 +32,7 @@ def train_rnn_model(train_loader, val_loader, num_features):
     train_losses, train_accuracies = [], []
     valid_losses, valid_accuracies = [], []
 
-    for epoch in range(NUM_EPOCHS):
+    for epoch in range(num_epochs):
 
         train_loss, train_accuracy = train(model, device, train_loader, criterion, optimizer, epoch)
         valid_loss, valid_accuracy, valid_results = evaluate(model, device, val_loader, criterion)
@@ -54,11 +49,11 @@ def train_rnn_model(train_loader, val_loader, num_features):
             best_val_acc = valid_accuracy
             torch.save(
                 model,
-                os.path.join(PATH_OUTPUT, "VariableRNN.pth"),
+                os.path.join(path_output, "VariableRNN.pth"),
                 _use_new_zipfile_serialization=False,
             )
 
-    best_model = torch.load(os.path.join(PATH_OUTPUT, "VariableRNN.pth"))
+    best_model = torch.load(os.path.join(path_output, "VariableRNN.pth"))
     return (
         best_model,
         train_losses,

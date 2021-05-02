@@ -19,12 +19,11 @@ inp_folder = "../data/unzipped_files"
 
 
 class CreateDataset:
-
-    BATCH_SIZE = 1
     NUM_WORKERS = 0
 
-    def __init__(self, inp_folder):
+    def __init__(self, inp_folder, batch_size):
         self.inp_folder = inp_folder
+        self.batch_size = batch_size
 
     def set_icustays(self):
         self.icustays_file = "ICUSTAYS.csv"
@@ -313,7 +312,7 @@ class CreateDataset:
         # generate torch data_loader
         data_loader = DataLoader(
             dataset=dataset,
-            batch_size=self.BATCH_SIZE,
+            batch_size=self.batch_size,
             shuffle=True,
             collate_fn=event_collate_fn,
             num_workers=self.NUM_WORKERS,

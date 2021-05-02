@@ -37,11 +37,6 @@ class CreateDataset:
             "HADM_ID",
             "CHARTDATE",
             "SPEC_ITEMID",
-            # "SPEC_TYPE_DESC",
-            # "ORG_ITEMID",
-            # "ISOLATE_NUM",
-            # "AB_ITEMID",
-            # "INTERPRETATION",
         ]
 
     def set_labevents(self):

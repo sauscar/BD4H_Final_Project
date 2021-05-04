@@ -31,7 +31,7 @@ The whole pipeline will be completed in less than 5 minutes.
 
 The model performed the best when setting the batch size to be 1 and traning for only 2 epochs. The best model achieved 54% in recall and 46% in precision. The confusion matrix is shown below
 
-<img src="confusion_matrix_test_temp.png">
+<img src="metrics/confusion_matrix_test_temp.png">
 
 
 ### Files Overview

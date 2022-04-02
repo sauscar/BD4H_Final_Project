@@ -16,7 +16,7 @@ def predict_sepsis_probabiltiies(model, device, data_loader):
     model.eval()
     probas = []
     labels = []
-
+    x = 1
     # set to no_grad for evaluation
     with torch.no_grad():
         # evaluate each batch
